@@ -1,3 +1,5 @@
+import QuizStorage from './storage.js';
+
 const GEMINI_API_KEY = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU"; // Thay bằng khóa thật
 
 const topicInput = document.getElementById("topic-input");
@@ -26,7 +28,7 @@ generateButton.addEventListener("click", async () => {
       renderQuiz(quiz, quizForm);
       quizSection.classList.remove("hidden");
       resultSection.classList.add("hidden");
-      localStorage.setItem("currentQuiz", JSON.stringify(quiz));
+      QuizStorage.saveCurrentQuiz(quiz, topic); // Save with topic
     }
   } catch (error) {
     alert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
@@ -41,7 +43,12 @@ submitButton.addEventListener("click", () => {
   resultSection.textContent = `Bạn được ${score} điểm!`;
   resultSection.classList.remove("hidden");
 
-  localStorage.removeItem("currentQuiz");
+  const topic = topicInput.value.trim();
+  QuizStorage.saveQuizHistory(topic, score);
+  QuizStorage.clearCurrentQuiz();
+  
+  // Display full application state after submission
+  QuizStorage.displayAll();
 });
 
 async function fetchQuizFromGemini(topic) {
@@ -343,5 +350,30 @@ function calculateScore(form) {
     </div>
   `;
 
+
   return score;
 }
+
+// Add DOMContentLoaded event listener to display initial state
+document.addEventListener("DOMContentLoaded", () => {
+  console.log('Quiz Application Started');
+  QuizStorage.displayAll();
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  const history = QuizStorage.getQuizHistory();
+
+  if (history.length > 0) {
+      console.group("Quiz History");
+      history.forEach((entry, index) => {
+          console.log(`${index + 1}. Topic: ${entry.topic}`);
+          console.log(`   Score: ${entry.score}`);
+          console.log(`   Date: ${new Date(entry.date).toLocaleString()}`);
+      });
+      console.groupEnd();
+  } else {
+      console.log("This quiz don't have localStorage before");
+  }
+});
+
+
