@@ -1,3 +1,5 @@
+import QuizStorage from './storage.js';
+
 const GEMINI_API_KEY = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU"; // Thay bằng khóa thật
 
 const topicInput = document.getElementById("topic-input");
@@ -21,7 +23,7 @@ generateButton.addEventListener("click", async () => {
       renderQuiz(quiz, quizForm);
       quizSection.classList.remove("hidden");
       resultSection.classList.add("hidden");
-      localStorage.setItem("currentQuiz", JSON.stringify(quiz));
+      QuizStorage.saveCurrentQuiz(quiz, topic); // Save with topic
     }
   } catch (error) {
     alert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
@@ -36,7 +38,12 @@ submitButton.addEventListener("click", () => {
   resultSection.textContent = `Bạn được ${score} điểm!`;
   resultSection.classList.remove("hidden");
 
-  localStorage.removeItem("currentQuiz");
+  const topic = topicInput.value.trim();
+  QuizStorage.saveQuizHistory(topic, score);
+  QuizStorage.clearCurrentQuiz();
+  
+  // Display full application state after submission
+  QuizStorage.displayAll();
 });
 
 async function fetchQuizFromGemini(topic) {
@@ -113,17 +120,17 @@ function renderQuiz(quiz, container) {
   quiz.forEach((q, index) => {
     const qElement = document.createElement("div");
     qElement.innerHTML = `
-      <p>${index + 1}. ${q.question}</p>
+      <p class="font-semibold mb-2">${index + 1}. ${q.question}</p>
       ${q.options
         .map(
-          (opt) => `
-        <label>
-          <input type="radio" name="q${index}" value="${opt}">
+          (opt, optIndex) => `
+        <label class="block mb-2">
+          <input type="radio" name="q${index}" value="${String.fromCharCode(65 + optIndex)}">
           ${opt}
         </label>
       `
         )
-        .join("<br>")}
+        .join("")}
     `;
     container.appendChild(qElement);
   });
@@ -132,9 +139,41 @@ function renderQuiz(quiz, container) {
 function calculateScore(form) {
   const data = new FormData(form);
   let score = 0;
-  const quiz = JSON.parse(localStorage.getItem("currentQuiz"));
-  quiz.forEach((q, index) => {
-    if (data.get(`q${index}`) === q.answer) score++;
+  const quizData = QuizStorage.getCurrentQuiz();
+  
+  if (!quizData || !quizData.questions) {
+    console.error("No quiz data found");
+    return 0;
+  }
+
+  quizData.questions.forEach((q, index) => {
+    const userAnswer = data.get(`q${index}`);
+    if (userAnswer === q.answer) score++;
   });
+
   return score;
 }
+
+// Add DOMContentLoaded event listener to display initial state
+document.addEventListener("DOMContentLoaded", () => {
+  console.log('Quiz Application Started');
+  QuizStorage.displayAll();
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  const history = QuizStorage.getQuizHistory();
+
+  if (history.length > 0) {
+      console.group("Quiz History");
+      history.forEach((entry, index) => {
+          console.log(`${index + 1}. Topic: ${entry.topic}`);
+          console.log(`   Score: ${entry.score}`);
+          console.log(`   Date: ${new Date(entry.date).toLocaleString()}`);
+      });
+      console.groupEnd();
+  } else {
+      console.log("This quiz don't have localStorage before");
+  }
+});
+
+
