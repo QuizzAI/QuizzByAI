@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Layout</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/pagequiz/page.css" />
+  </head>
+  <body>
+    <!-- Trang chính -->
+    <div
+      class="quiz-background min-h-screen flex flex-col justify-center items-center px-4"
+    >
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6 drop-shadow-md">
+        Welcome to Quizz AI
+      </h1>
+      <div class="flex flex-col sm:flex-row items-center w-full max-w-lg">
+        <input
+          type="text"
+          placeholder="Nhập chủ đề của quiz"
+          class="w-full sm:w-3/4 bg-blue-100 border-2 border-white rounded-full px-4 py-3 text-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 sm:mb-0 sm:mr-4"
+        />
+        <button
+          id="startQuizBtn"
+          class="startpag-button w-full sm:w-auto bg-purple-600 text-white font-bold rounded-full px-6 py-2 shadow-lg hover:bg-purple-700 hover:scale-105 transition-all duration-300"
+        >
+          Start Quizz
+        </button>
+      </div>
+    </div>
+
+  </body>
+</html>
