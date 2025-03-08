@@ -1,0 +1,18 @@
+@media (max-width: 640px) {
+    h1 {
+        font-size: 2rem; 
+        margin-bottom: 1rem; 
+    }
+    .input-field {
+        padding: 0.5rem 1rem; 
+        font-size: 0.875rem; 
+    }
+    .startpag-button{
+        width: 10rem; 
+    }
+}
+.quiz-background {
+    background-image: url("/image/PageQuiz.jpg");
+    background-size: cover;
+    background-position: center;
+  }

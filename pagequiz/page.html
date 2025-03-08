@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Layout</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/pagequiz/page.css" />
+  </head>
+  <body>
+    <!-- Trang chính -->
+    <div
+      class="quiz-background min-h-screen flex flex-col justify-center items-center px-4"
+    >
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6 drop-shadow-md">
+        Welcome to Quizz AI
+      </h1>
+
+      <div class="flex flex-col sm:flex-row items-center w-full max-w-lg">
+        <input
+          type="text"
+          placeholder="Nhập chủ đề của quiz"
+          class="w-full sm:w-3/4 bg-blue-100 border-2 border-white rounded-full px-4 py-3 text-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 sm:mb-0 sm:mr-4"
+        />
+        <button
+          id="startQuizBtn"
+          class="startpag-button w-full sm:w-auto bg-purple-600 text-white font-bold rounded-full px-6 py-2 shadow-lg hover:bg-purple-700 hover:scale-105 transition-all duration-300"
+        >
+          Start Quizz
+        </button>
+      </div>
+    </div>
+
+    <!-- Popup xác nhận -->
+    <div
+      id="confirmPopup"
+      class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden"
+    >
+      <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Xác nhận</h2>
+        <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn bắt đầu quiz không?</p>
+        <div class="flex justify-end space-x-4">
+          <button
+            id="noBtn"
+            class="bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-gray-400 transition-all duration-200"
+          >
+            No
+          </button>
+          <button
+            id="yesBtn"
+            class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-purple-700 transition-all duration-200"
+          >
+            Yes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const startQuizBtn = document.getElementById("startQuizBtn");
+        const confirmPopup = document.getElementById("confirmPopup");
+        const noBtn = document.getElementById("noBtn");
+        const yesBtn = document.getElementById("yesBtn");
+        const loading = document.getElementById("loading");
+
+        // Khi nhấn Start Quizz, hiển thị popup
+        startQuizBtn.addEventListener("click", function () {
+          confirmPopup.classList.remove("hidden");
+        });
+
+        // Khi nhấn No, ẩn popup
+        noBtn.addEventListener("click", function () {
+          confirmPopup.classList.add("hidden");
+        });
+
+        // Khi nhấn Yes, hiển thị loading và chuyển trang
+        yesBtn.addEventListener("click", function () {
+          confirmPopup.classList.add("hidden"); // Ẩn popup
+          loading.classList.remove("hidden"); // Hiển thị loading
+        });
+      });
+    </script>
+  </body>
+</html>
