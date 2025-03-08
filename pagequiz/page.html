@@ -9,6 +9,21 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/pagequiz/page.css" />
+    <style>
+      /* Styling cho spinner loading */
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid #ffffff;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
     <!-- Trang chính -->
@@ -67,6 +82,43 @@
       </div>
     </div>
 
+    <!-- Loading indicator -->
+    <div id="loading" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+      <p class="loading-text">Loading...</p>
+      <div class="cat">
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
+      </div>
+    </div>
+
     <!-- JavaScript -->
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -77,6 +129,7 @@
         const popupMessage = document.getElementById("popupMessage");
         const noBtn = document.getElementById("noBtn");
         const yesBtn = document.getElementById("yesBtn");
+        const loading = document.getElementById("loading");
 
         let actionType = ""; // Biến để theo dõi hành động
 
@@ -108,18 +161,19 @@
           confirmPopup.classList.add("hidden");
         });
 
-        // Khi nhấn Yes, thực hiện hành động tương ứng
+        // Khi nhấn Yes, hiển thị loading và chuyển trang
         yesBtn.addEventListener("click", function () {
-          confirmPopup.classList.add("hidden");
-          if (actionType === "start") {
-            // Logic cho Start Quizz (ví dụ: chuyển sang trang quiz)
-            console.log("Bắt đầu quiz...");
-            // window.location.href = "quiz.html"; // Uncomment để chuyển trang
-          } else if (actionType === "history") {
-            // Logic cho Question History (ví dụ: chuyển sang trang lịch sử)
-            console.log("Xem lịch sử câu hỏi...");
-            // window.location.href = "history.html"; // Uncomment để chuyển trang
-          }
+          confirmPopup.classList.add("hidden"); // Ẩn popup
+          loading.classList.remove("hidden"); // Hiển thị loading
+
+          // Giả lập thời gian loading (2 giây) trước khi chuyển trang
+          setTimeout(function () {
+            if (actionType === "start") {
+              window.location.href = "quiz.html"; // Chuyển sang trang quiz
+            } else if (actionType === "history") {
+              window.location.href = "history.html"; // Chuyển sang trang lịch sử
+            }
+          }, 5000);
         });
       });
     </script>
