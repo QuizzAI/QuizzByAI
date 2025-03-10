@@ -12,6 +12,9 @@ const resultSection = document.getElementById("result-section");
 // Thêm biến để theo dõi câu hỏi hiện tại
 let currentQuestionIndex = 0;
 
+// Thêm biến cho dropdown
+const questionCountSelect = document.getElementById("question-count");
+
 // Thêm hàm hiển thị popup thông báo
 function showAlert(message) {
   const alertPopup = document.getElementById("alertPopup");
@@ -36,8 +39,9 @@ function showPopup(type, topic) {
   const noBtn = document.getElementById("noBtn");
 
   if (type === "start") {
+    const numberOfQuestions = questionCountSelect.value;
     popupTitle.textContent = "Xác nhận bắt đầu quiz";
-    popupMessage.textContent = "Bạn có chắc chắn muốn bắt đầu quiz không?";
+    popupMessage.textContent = `Bạn có chắc chắn muốn bắt đầu quiz với ${numberOfQuestions} câu hỏi không?`;
   }
 
   confirmPopup.classList.remove("hidden");
@@ -82,7 +86,11 @@ generateButton.addEventListener("click", () => {
     return;
   }
 
-  // Hiển thị popup xác nhận
+  if (!questionCountSelect.value) {
+    showAlert("Vui lòng chọn số câu hỏi!");
+    return;
+  }
+
   showPopup("start", topic);
 });
 
@@ -102,7 +110,21 @@ submitButton.addEventListener("click", () => {
 async function fetchQuizFromGemini(topic) {
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-  const prompt = `Generate a quiz about "${topic}". Return ONLY a JSON object in this EXACT format, with NO additional text or markdown:
+  // Lấy số câu hỏi từ dropdown
+  const numberOfQuestions = parseInt(questionCountSelect.value);
+  let language = "Vietnamese"; // Mặc định tiếng Việt
+
+  // Phân tích ngôn ngữ từ input (nếu có)
+  if (
+    topic.toLowerCase().includes("english") ||
+    topic.toLowerCase().includes("eng")
+  ) {
+    language = "English";
+    topic = topic.replace(/english|eng/gi, "").trim();
+  }
+
+  const prompt = `Generate a quiz with ${numberOfQuestions} multiple choice questions about "${topic}" in ${language}. 
+Return ONLY a JSON object in this EXACT format, with NO additional text or markdown:
 {
   "title": "${topic}",
   "questions": [
@@ -115,12 +137,13 @@ async function fetchQuizFromGemini(topic) {
 }
 
 Requirements:
-- Create exactly 10 questions
+- Create exactly ${numberOfQuestions} questions
+- Questions and answers must be in ${language}
 - correctAnswerIndex must be 0-3
 - DO NOT include \`\`\` or any markdown
 - DO NOT add any explanation text
 - Response must be valid JSON
-- Questions and answers should be in Vietnamese`;
+- Each question must be unique and relevant to the topic`;
 
   const payload = {
     contents: [
@@ -233,97 +256,124 @@ window.updateProgress = function () {
 // Sửa lại phần renderQuiz để sử dụng addEventListener thay vì inline handler
 function renderQuiz(quiz, container) {
   container.innerHTML = `
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold mb-2">${quiz.title}</h2>
-      <p class="text-gray-600">Câu hỏi ${currentQuestionIndex + 1}/${
-    quiz.questions.length
-  }</p>
-    </div>
-    
-    <div class="space-y-6">
-      <div class="p-4 bg-gray-50 rounded-lg question-card">
-        <p class="font-semibold mb-3 text-lg">
-          <span class="text-blue-600">Câu ${currentQuestionIndex + 1}:</span> 
-          ${quiz.questions[currentQuestionIndex].question}
-        </p>
-        
-        <div class="ml-4 space-y-2">
-          ${quiz.questions[currentQuestionIndex].answers
-            .map(
-              (answer, ansIndex) => `
-            <label class="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
-              <input type="radio" 
-                name="q${currentQuestionIndex}" 
-                value="${ansIndex}"
-                class="w-4 h-4 text-blue-600 answer-radio"
-              >
-              <span class="ml-2">${answer}</span>
-            </label>
-          `
-            )
-            .join("")}
-        </div>
+    <form id="quiz-form" onsubmit="event.preventDefault();" class="quiz-container bg-gray-800 rounded-lg p-6">
+      <div class="mb-4 text-white">
+        Question ${currentQuestionIndex + 1}/${quiz.questions.length}
       </div>
-    </div>
-    
-    <div class="mt-6 flex justify-between items-center">
-      <div class="flex gap-2">
-        <button id="prevQuestion" 
-          class="px-4 py-2 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          ${currentQuestionIndex === 0 ? "disabled" : ""}>
-          Câu trước
-        </button>
-        <button id="nextQuestion" 
-          class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+      
+      <div class="question-text text-white mb-6">
+        ${quiz.questions[currentQuestionIndex].question}
+      </div>
+      
+      <div class="answers-container space-y-4">
+        ${quiz.questions[currentQuestionIndex].answers
+          .map(
+            (answer, ansIndex) => `
+            <div class="answer-option">
+              <input type="radio" 
+                id="answer${ansIndex}" 
+                name="q${currentQuestionIndex}" 
+                value="${ansIndex}" 
+                class="hidden"
+              >
+              <label for="answer${ansIndex}" 
+                class="answer-button w-full text-left py-3 px-4 rounded-lg bg-blue-500 hover:bg-blue-600 transition-all duration-200 text-white cursor-pointer block">
+                ${String.fromCharCode(65 + ansIndex)}. ${answer}
+              </label>
+            </div>
+          `
+          )
+          .join("")}
+      </div>
+      
+      <div class="flex justify-between mt-6">
+        <button type="button" id="nextQuestion" 
+          class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200"
           ${
             currentQuestionIndex === quiz.questions.length - 1 ? "disabled" : ""
           }>
-          Câu tiếp
+          Next
+        </button>
+        <button type="button" id="submit-quiz"
+          class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200">
+          Nộp bài
         </button>
       </div>
-      <div class="progress-bar w-64 h-2 bg-gray-200 rounded-full">
-        <div id="progress" class="h-full bg-blue-600 rounded-full" 
-          style="width: ${
-            ((currentQuestionIndex + 1) / quiz.questions.length) * 100
-          }%">
-        </div>
-      </div>
-    </div>
+    </form>
   `;
 
-  // Add event listeners to all radio buttons
-  const radioButtons = container.querySelectorAll(".answer-radio");
+  // Thêm style vào head
+  if (!document.getElementById("quiz-styles")) {
+    const styleSheet = document.createElement("style");
+    styleSheet.id = "quiz-styles";
+    styleSheet.textContent = `
+      .answer-button {
+        position: relative;
+        overflow: hidden;
+      }
+      
+      input[type="radio"]:checked + .answer-button {
+        background-color: #22c55e !important;
+      }
+      
+      .answer-button:hover {
+        transform: translateY(-2px);
+      }
+    `;
+    document.head.appendChild(styleSheet);
+  }
+
+  // Xử lý sự kiện change cho radio buttons
+  const radioButtons = container.querySelectorAll('input[type="radio"]');
   radioButtons.forEach((radio) => {
-    radio.addEventListener("change", updateProgress);
+    radio.addEventListener("change", () => {
+      const answerIndex = parseInt(radio.value);
+      saveAnswer(currentQuestionIndex, answerIndex);
+      updateSubmitButton(quiz);
+    });
   });
 
-  // Thêm event listeners cho nút điều hướng
-  const prevButton = document.getElementById("prevQuestion");
+  // Xử lý nút Next
   const nextButton = document.getElementById("nextQuestion");
-
-  prevButton.addEventListener("click", () => {
-    if (currentQuestionIndex > 0) {
-      currentQuestionIndex--;
-      renderQuiz(quiz, container);
-      // Khôi phục câu trả lời đã chọn (nếu có)
-      restoreAnswer(currentQuestionIndex);
-    }
-  });
-
   nextButton.addEventListener("click", () => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
       currentQuestionIndex++;
       renderQuiz(quiz, container);
-      // Khôi phục câu trả lời đã chọn (nếu có)
       restoreAnswer(currentQuestionIndex);
     }
   });
 
-  // Khôi phục câu trả lời hiện tại (nếu có)
+  // Khôi phục câu trả lời đã chọn (nếu có)
   restoreAnswer(currentQuestionIndex);
 
-  // Cập nhật nút Submit
+  // Cập nhật trạng thái nút Submit
   updateSubmitButton(quiz);
+
+  // Thêm event listener cho nút nộp bài
+  const submitButton = document.getElementById("submit-quiz");
+  submitButton.addEventListener("click", () => {
+    // Hiển thị popup xác nhận nộp bài
+    const confirmPopup = document.getElementById("confirmPopup");
+    const popupTitle = document.getElementById("popupTitle");
+    const popupMessage = document.getElementById("popupMessage");
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn = document.getElementById("noBtn");
+
+    popupTitle.textContent = "Xác nhận nộp bài";
+    popupMessage.textContent = "Bạn có chắc chắn muốn nộp bài không?";
+    confirmPopup.classList.remove("hidden");
+
+    // Xử lý nút No
+    noBtn.onclick = () => {
+      confirmPopup.classList.add("hidden");
+    };
+
+    // Xử lý nút Yes
+    yesBtn.onclick = () => {
+      confirmPopup.classList.add("hidden");
+      submitQuiz(quiz);
+    };
+  });
 }
 
 // Thêm hàm để lưu câu trả lời
@@ -341,7 +391,9 @@ function restoreAnswer(questionIndex) {
     const radio = document.querySelector(
       `input[name="q${questionIndex}"][value="${savedAnswer}"]`
     );
-    if (radio) radio.checked = true;
+    if (radio) {
+      radio.checked = true;
+    }
   }
 }
 
@@ -349,8 +401,15 @@ function restoreAnswer(questionIndex) {
 function updateSubmitButton(quiz) {
   const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
   const answeredCount = Object.keys(answers).length;
-  document.getElementById("submit-quiz").disabled =
-    answeredCount < quiz.questions.length;
+  const submitButton = document.getElementById("submit-quiz");
+  if (submitButton) {
+    submitButton.disabled = answeredCount < quiz.questions.length;
+    if (submitButton.disabled) {
+      submitButton.classList.add("opacity-50", "cursor-not-allowed");
+    } else {
+      submitButton.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+  }
 }
 
 // Cập nhật calculateScore để hiển thị kết quả chi tiết
@@ -410,10 +469,117 @@ function calculateScore(form) {
   return score;
 }
 
+// Thêm hàm mới để xử lý việc nộp bài
+function submitQuiz(quiz) {
+  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
+  let score = 0;
+  let results = [];
+
+  quiz.questions.forEach((q, index) => {
+    const userAnswer = answers[index];
+    const isCorrect = userAnswer === q.correctAnswerIndex;
+    if (isCorrect) score++;
+
+    results.push({
+      question: q.question,
+      userAnswer: q.answers[userAnswer],
+      correctAnswer: q.answers[q.correctAnswerIndex],
+      isCorrect,
+    });
+  });
+
+  // Hiển thị kết quả
+  const resultSection = document.getElementById("result-section");
+  resultSection.classList.remove("hidden");
+  document.getElementById("quiz-section").classList.add("hidden");
+
+  resultSection.innerHTML = `
+    <div class="bg-gray-800 rounded-lg p-6 text-white">
+      <h2 class="text-2xl font-bold mb-4">Kết quả Quiz</h2>
+      <div class="mb-6">
+        <p class="text-xl">Điểm của bạn: ${score}/${quiz.questions.length}</p>
+        <div class="w-full h-2 bg-gray-200 rounded-full mt-2">
+          <div class="h-full bg-green-500 rounded-full" style="width: ${
+            (score / quiz.questions.length) * 100
+          }%"></div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        ${results
+          .map(
+            (result, index) => `
+          <div class="p-4 rounded-lg ${
+            result.isCorrect ? "bg-green-500/20" : "bg-red-500/20"
+          }">
+            <p class="font-bold">Câu ${index + 1}: ${result.question}</p>
+            <p class="mt-2">
+              <span class="font-semibold">Câu trả lời của bạn:</span> 
+              ${result.userAnswer}
+              ${
+                result.isCorrect
+                  ? '<span class="text-green-400 ml-2">✓</span>'
+                  : `<span class="text-red-400 ml-2">✗</span><br>
+                   <span class="font-semibold">Đáp án đúng:</span> ${result.correctAnswer}`
+              }
+            </p>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+      <button 
+        onclick="location.reload()" 
+        class="mt-6 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200">
+        Làm lại bài test
+      </button>
+    </div>
+  `;
+
+  // Lưu lịch sử
+  const topic = document.getElementById("topic-input").value.trim();
+  QuizStorage.saveQuizHistory(topic, score);
+  QuizStorage.clearCurrentQuiz();
+}
+
+// Thêm hàm helper để xác định ngôn ngữ
+function detectLanguage(topic) {
+  const englishKeywords = ["english", "eng"];
+  const vietnameseKeywords = ["vietnamese", "viet"];
+
+  const lowercaseTopic = topic.toLowerCase();
+
+  if (englishKeywords.some((keyword) => lowercaseTopic.includes(keyword))) {
+    return "English";
+  } else if (
+    vietnameseKeywords.some((keyword) => lowercaseTopic.includes(keyword))
+  ) {
+    return "Vietnamese";
+  }
+
+  return "Vietnamese"; // Mặc định là tiếng Việt
+}
+
+// Cập nhật placeholder cho input
+document.addEventListener("DOMContentLoaded", () => {
+  const topicInput = document.getElementById("topic-input");
+  topicInput.placeholder = "Nhập chủ đề (thêm 'English' cho câu hỏi tiếng Anh)";
+});
+
 // Đảm bảo chỉ có một DOMContentLoaded event listener
 const initApp = () => {
   console.log("Quiz Application Started");
   QuizStorage.displayAll();
+
+  // Khôi phục số câu hỏi đã chọn trước đó (nếu có)
+  const savedQuestionCount = localStorage.getItem("preferredQuestionCount");
+  if (savedQuestionCount) {
+    questionCountSelect.value = savedQuestionCount;
+  }
+
+  // Lưu số câu hỏi được chọn
+  questionCountSelect.addEventListener("change", () => {
+    localStorage.setItem("preferredQuestionCount", questionCountSelect.value);
+  });
 
   const history = QuizStorage.getQuizHistory();
   if (history.length > 0) {

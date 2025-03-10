@@ -45,6 +45,15 @@
           placeholder="Nhập chủ đề của quiz"
           class="w-full bg-blue-100 border-2 border-white rounded-full px-4 py-3 text-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
         />
+        <select
+          id="question-count"
+          class="w-full bg-blue-100 border-2 border-white rounded-full px-4 py-3 text-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+        >
+          <option value="5">5 câu hỏi</option>
+          <option value="10" selected>10 câu hỏi</option>
+          <option value="15">15 câu hỏi</option>
+          <option value="20">20 câu hỏi</option>
+        </select>
         <div
           class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full"
         >
@@ -105,13 +114,6 @@
             </div>
           </div>
         </form>
-        <button
-          id="submit-quiz"
-          class="w-full mt-4 bg-green-600 text-white font-bold rounded-full px-6 py-2 shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled
-        >
-          Nộp bài
-        </button>
       </div>
 
       <!-- Thêm section cho kết quả với format mới -->
