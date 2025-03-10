@@ -26,13 +26,16 @@
     </div>
 
     <div id="success-message" class="success-message">
-        <span>🎉 Chúc mừng! Bạn đã hoàn thành bài thi thành công!</span>
+        <span>🎉 Chúc mừng! Bạn đã hoàn thành bài thi!</span>
+        <div id="score-display" class="score-display"></div>
+        <button id="retry-btn" class="retry-button">Làm lại bài test</button>
     </div>
 
     <script>
         let currentQuestionIndex = 0;
         let questions = [];
         let selectedAnswer = null;
+        let score = 0;
 
         function fetchQuestions() {
             axios.get('https://jsonplaceholder.typicode.com/posts?_limit=10')
@@ -86,6 +89,9 @@
 
         function selectAnswer(button, isCorrect) {
             selectedAnswer = isCorrect;
+            if (isCorrect) {
+                score++;
+            }
             document.querySelectorAll(".answer-button").forEach(btn => {
                 btn.classList.remove("selected");
             });
@@ -106,12 +112,35 @@
         // Nút "Có" trong hộp xác nhận
         document.getElementById("yes-btn").addEventListener("click", () => {
             document.getElementById("confirmation-box").style.display = "none";
+            const scorePercentage = (score / questions.length) * 100;
+            document.getElementById("score-display").innerHTML = 
+                `<p>Điểm của bạn: ${score}/${questions.length} (${scorePercentage}%)</p>`;
             document.getElementById("success-message").style.display = "block";
         });
 
         // Nút "Không" trong hộp xác nhận
         document.getElementById("no-btn").addEventListener("click", () => {
             document.getElementById("confirmation-box").style.display = "none";
+        });
+
+        // Thêm xử lý cho nút làm lại
+        document.getElementById("retry-btn").addEventListener("click", () => {
+            // Reset các giá trị
+            currentQuestionIndex = 0;
+            score = 0;
+            selectedAnswer = null;
+            
+            // Hiển thị lại các phần tử
+            document.getElementById("question-number").style.display = "block";
+            document.getElementById("question-text").style.display = "block";
+            document.getElementById("answers").style.display = "block";
+            document.getElementById("next-btn").style.display = "block";
+            
+            // Ẩn thông báo thành công
+            document.getElementById("success-message").style.display = "none";
+            
+            // Tải lại câu hỏi
+            fetchQuestions();
         });
 
         fetchQuestions();

@@ -1,6 +1,6 @@
 /* Cài đặt cho nền body */
 body {
-    background-image: url('../Image/background.jpg');
+    background-image: url('./Image/backgroung.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -140,27 +140,50 @@ body {
     display: none;
     background: rgba(46, 204, 113, 0.9);
     color: white;
-    padding: 15px 25px;
-    margin-top: 20px;
+    padding: 25px 35px;
     border-radius: 8px;
     text-align: center;
     font-size: 18px;
     font-weight: bold;
     position: fixed;
-    top: 20px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    animation: slideDown 0.5s ease-out;
+    animation: fadeIn 0.5s ease-out;
 }
 
-@keyframes slideDown {
+@keyframes fadeIn {
     from {
-        top: -100px;
         opacity: 0;
     }
     to {
-        top: 20px;
         opacity: 1;
     }
+}
+
+/* Cài đặt cho phần hiển thị điểm */
+.score-display {
+    margin: 15px 0;
+    font-size: 20px;
+    color: white;
+    font-weight: bold;
+}
+
+/* Cài đặt cho nút làm lại */
+.retry-button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 15px;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.retry-button:hover {
+    background: #2980b9;
+    transform: scale(1.05);
 }
