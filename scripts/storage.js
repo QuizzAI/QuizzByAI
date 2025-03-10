@@ -1,12 +1,13 @@
-// Create 
 class QuizStorage {
     static CURRENT_QUIZ_KEY = 'currentQuiz';
     static QUIZ_HISTORY_KEY = 'quizHistory';
 
-    static saveCurrentQuiz(quiz, topic) {
+    static saveCurrentQuiz(quiz, topic, currentQuestionIndex) {
         const quizData = {
             questions: quiz,
             topic: topic,
+            currentQuestionIndex: currentQuestionIndex,  // Use currentQuestionIndex
+            draftAnswers: this.getCurrentDraftAnswers(), // Save draft answers
             timestamp: new Date().toISOString()
         };
         localStorage.setItem(this.CURRENT_QUIZ_KEY, JSON.stringify(quizData));
@@ -76,10 +77,39 @@ class QuizStorage {
     }
 
     static displayAll() {
-        console.group('Quiz Application State');
-        this.displayCurrentQuiz();
-        this.displayHistory();
+        const currentQuiz = this.getCurrentQuiz();  // ✅ Lấy dữ liệu từ localStorage trước
+    
+        if (!currentQuiz) {
+            console.log("Chưa có quiz nào trong localStorage.");
+            return;
+        }
+    
+        console.group('Current Quiz Information');
+        console.log(`Topic: ${currentQuiz.topic}`);
+        console.log(`Current question index: ${currentQuiz.currentQuestionIndex}`);
+        console.log(`Total questions: ${currentQuiz.questions.length}`);
+        console.log(`Date: ${new Date(currentQuiz.timestamp).toLocaleString()}`);
         console.groupEnd();
+    }
+
+    static getCurrentDraftAnswers() {
+        const quiz = this.getCurrentQuiz();
+        return quiz && quiz.draftAnswers ? quiz.draftAnswers : {};
+    }
+
+    static saveDraftAnswer(questionName, answerValue) {
+        const quiz = this.getCurrentQuiz() || { draftAnswers: {} };
+        if (!quiz.draftAnswers) quiz.draftAnswers = {};
+        quiz.draftAnswers[questionName] = answerValue;
+        localStorage.setItem(this.CURRENT_QUIZ_KEY, JSON.stringify(quiz));
+    }
+
+    static loadQuizDraft() {
+        const draftAnswers = this.getCurrentDraftAnswers();
+        Object.keys(draftAnswers).forEach((key) => {
+            const input = document.querySelector(`input[name="${key}"][value="${draftAnswers[key]}"]`);
+            if (input) input.checked = true;
+        });
     }
 }
 
