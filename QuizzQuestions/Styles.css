@@ -30,8 +30,9 @@ body {
 .answer-buttons {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* Tăng khoảng cách giữa các nút */
-    margin-top: 20px;
+    gap: 25px; /* Tăng khoảng cách từ 15px lên 25px */
+    margin-top: 30px; /* Tăng khoảng cách từ trên xuống */
+    margin-bottom: 30px; /* Thêm khoảng cách phía dưới */
 }
 
 /* Cài đặt cho các nút trả lời */
@@ -39,12 +40,13 @@ body {
     background: #3498db;
     color: white;
     border: none;
-    padding: 12px;
-    border-radius: 5px;
+    padding: 15px; /* Tăng padding từ 12px lên 15px */
+    border-radius: 8px; /* Tăng bo góc lên một chút */
     cursor: pointer;
     transition: background 0.3s ease, transform 0.2s ease; /* Thêm hiệu ứng zoom nhẹ khi hover */
     font-size: 16px;
     width: 100%;
+    margin: 5px 0; /* Thêm margin trên dưới */
 }
 
 /* Hiệu ứng hover cho các nút trả lời */
@@ -64,13 +66,13 @@ body {
     background: #e67e22;
     color: white;
     border: none;
-    padding: 12px 20px;
+    padding: 12px 30px; /* Điều chỉnh padding */
     border-radius: 5px;
     cursor: pointer;
-    transition: background 0.3s ease, transform 0.2s ease; /* Thêm hiệu ứng zoom nhẹ khi hover */
+    transition: background 0.3s ease, transform 0.2s ease;
     font-size: 16px;
     text-align: center;
-    display: block;
+    min-width: 120px; /* Thêm độ rộng tối thiểu */
 }
 
 /* Hiệu ứng hover cho nút Next */
@@ -82,8 +84,9 @@ body {
 /* Cài đặt cho các nút Next và Nộp bài */
 .button-container {
     display: flex;
-    justify-content: space-between; /* Căn chỉnh các nút */
+    justify-content: space-between;
     margin-top: 25px;
+    gap: 20px; /* Thêm khoảng cách giữa các nút */
 }
 
 /* Cài đặt cho nút Nộp bài */
@@ -91,11 +94,12 @@ body {
     background: #f39c12;
     color: white;
     border: none;
-    padding: 12px 20px;
+    padding: 12px 30px; /* Điều chỉnh padding giống nút Next */
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
-    transition: background 0.3s ease, transform 0.2s ease; 
+    transition: background 0.3s ease, transform 0.2s ease;
+    min-width: 120px; /* Thêm độ rộng tối thiểu giống nút Next */
 }
 
 /* Hiệu ứng hover cho nút Nộp bài */
