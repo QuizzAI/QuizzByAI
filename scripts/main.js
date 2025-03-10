@@ -1,4 +1,4 @@
-import QuizStorage from './storage.js';
+import QuizStorage from "./storage.js";
 
 const GEMINI_API_KEY = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU"; // Thay bằng khóa thật
 
@@ -12,30 +12,78 @@ const resultSection = document.getElementById("result-section");
 // Thêm biến để theo dõi câu hỏi hiện tại
 let currentQuestionIndex = 0;
 
-generateButton.addEventListener("click", async () => {
-  const topic = topicInput.value.trim();
-  if (!topic) return alert("Vui lòng nhập chủ đề!");
+// Thêm hàm hiển thị popup thông báo
+function showAlert(message) {
+  const alertPopup = document.getElementById("alertPopup");
+  const alertMessage = document.getElementById("alertMessage");
+  const alertOkBtn = document.getElementById("alertOkBtn");
 
-  // Thêm loading state
-  generateButton.disabled = true;
-  generateButton.textContent = "Đang tạo quiz...";
+  alertMessage.textContent = message;
+  alertPopup.classList.remove("hidden");
 
-  try {
-    const quiz = await fetchQuizFromGemini(topic);
-    if (quiz) {
-      currentQuestionIndex = 0; // Reset về câu đầu tiên
-      localStorage.removeItem("quizAnswers"); // Xóa câu trả lời cũ
-      renderQuiz(quiz, quizForm);
-      quizSection.classList.remove("hidden");
-      resultSection.classList.add("hidden");
-      QuizStorage.saveCurrentQuiz(quiz, topic); // Save with topic
-    }
-  } catch (error) {
-    alert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
-  } finally {
-    generateButton.disabled = false;
-    generateButton.textContent = "Tạo Quiz";
+  // Xử lý nút OK
+  alertOkBtn.onclick = () => {
+    alertPopup.classList.add("hidden");
+  };
+}
+
+// Thêm hàm showPopup vào đầu file
+function showPopup(type, topic) {
+  const confirmPopup = document.getElementById("confirmPopup");
+  const popupTitle = document.getElementById("popupTitle");
+  const popupMessage = document.getElementById("popupMessage");
+  const yesBtn = document.getElementById("yesBtn");
+  const noBtn = document.getElementById("noBtn");
+
+  if (type === "start") {
+    popupTitle.textContent = "Xác nhận bắt đầu quiz";
+    popupMessage.textContent = "Bạn có chắc chắn muốn bắt đầu quiz không?";
   }
+
+  confirmPopup.classList.remove("hidden");
+
+  // Xử lý nút No
+  noBtn.onclick = () => {
+    confirmPopup.classList.add("hidden");
+  };
+
+  // Xử lý nút Yes
+  yesBtn.onclick = async () => {
+    confirmPopup.classList.add("hidden");
+    document.getElementById("loading").classList.remove("hidden");
+
+    try {
+      const quiz = await fetchQuizFromGemini(topic);
+      if (quiz) {
+        currentQuestionIndex = 0;
+        localStorage.removeItem("quizAnswers");
+        renderQuiz(quiz, quizForm);
+        quizSection.classList.remove("hidden");
+        resultSection.classList.add("hidden");
+        QuizStorage.saveCurrentQuiz(quiz, topic);
+      }
+    } catch (error) {
+      showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
+    } finally {
+      document.getElementById("loading").classList.add("hidden");
+      generateButton.disabled = false;
+      generateButton.textContent = "Start Quiz";
+    }
+  };
+}
+
+// Xóa event listener cũ của generateButton và thay thế bằng code mới
+generateButton.removeEventListener("click", async () => {});
+
+generateButton.addEventListener("click", () => {
+  const topic = topicInput.value.trim();
+  if (!topic) {
+    showAlert("Vui lòng nhập chủ đề!");
+    return;
+  }
+
+  // Hiển thị popup xác nhận
+  showPopup("start", topic);
 });
 
 submitButton.addEventListener("click", () => {
@@ -46,7 +94,7 @@ submitButton.addEventListener("click", () => {
   const topic = topicInput.value.trim();
   QuizStorage.saveQuizHistory(topic, score);
   QuizStorage.clearCurrentQuiz();
-  
+
   // Display full application state after submission
   QuizStorage.displayAll();
 });
@@ -71,7 +119,8 @@ Requirements:
 - correctAnswerIndex must be 0-3
 - DO NOT include \`\`\` or any markdown
 - DO NOT add any explanation text
-- Response must be valid JSON`;
+- Response must be valid JSON
+- Questions and answers should be in Vietnamese`;
 
   const payload = {
     contents: [
@@ -92,14 +141,16 @@ Requirements:
 
     if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
       const textResult = data.candidates[0].content.parts[0].text;
-      console.log("Raw API response:", textResult); // Debug log
+      console.log("Raw API response:", textResult);
       return parseQuizJSON(textResult);
     } else {
       console.error("Invalid API response structure:", data);
+      showAlert("Không thể tạo quiz. Vui lòng thử lại sau!");
       return null;
     }
   } catch (error) {
     console.error("API call error:", error);
+    showAlert("Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại!");
     return null;
   }
 }
@@ -157,6 +208,29 @@ function parseQuizJSON(text) {
   }
 }
 
+// Đầu tiên, đưa hàm updateProgress vào global scope
+window.updateProgress = function () {
+  const currentRadios = document.querySelectorAll(
+    `input[name="q${currentQuestionIndex}"]`
+  );
+  const selectedAnswer = Array.from(currentRadios).findIndex(
+    (radio) => radio.checked
+  );
+
+  if (selectedAnswer !== -1) {
+    saveAnswer(currentQuestionIndex, selectedAnswer);
+  }
+
+  // Kiểm tra xem đã trả lời hết các câu chưa
+  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
+  const answeredCount = Object.keys(answers).length;
+  const quiz = JSON.parse(localStorage.getItem("currentQuiz"));
+
+  document.getElementById("submit-quiz").disabled =
+    answeredCount < quiz.questions.length;
+};
+
+// Sửa lại phần renderQuiz để sử dụng addEventListener thay vì inline handler
 function renderQuiz(quiz, container) {
   container.innerHTML = `
     <div class="mb-6">
@@ -181,8 +255,7 @@ function renderQuiz(quiz, container) {
               <input type="radio" 
                 name="q${currentQuestionIndex}" 
                 value="${ansIndex}"
-                class="w-4 h-4 text-blue-600"
-                onchange="updateProgress()"
+                class="w-4 h-4 text-blue-600 answer-radio"
               >
               <span class="ml-2">${answer}</span>
             </label>
@@ -217,6 +290,12 @@ function renderQuiz(quiz, container) {
       </div>
     </div>
   `;
+
+  // Add event listeners to all radio buttons
+  const radioButtons = container.querySelectorAll(".answer-radio");
+  radioButtons.forEach((radio) => {
+    radio.addEventListener("change", updateProgress);
+  });
 
   // Thêm event listeners cho nút điều hướng
   const prevButton = document.getElementById("prevQuestion");
@@ -264,28 +343,6 @@ function restoreAnswer(questionIndex) {
     );
     if (radio) radio.checked = true;
   }
-}
-
-// Cập nhật hàm updateProgress
-function updateProgress() {
-  const currentRadios = document.querySelectorAll(
-    `input[name="q${currentQuestionIndex}"]`
-  );
-  const selectedAnswer = Array.from(currentRadios).findIndex(
-    (radio) => radio.checked
-  );
-
-  if (selectedAnswer !== -1) {
-    saveAnswer(currentQuestionIndex, selectedAnswer);
-  }
-
-  // Kiểm tra xem đã trả lời hết các câu chưa
-  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
-  const answeredCount = Object.keys(answers).length;
-  const quiz = JSON.parse(localStorage.getItem("currentQuiz"));
-
-  document.getElementById("submit-quiz").disabled =
-    answeredCount < quiz.questions.length;
 }
 
 // Thêm hàm để cập nhật trạng thái nút Submit
@@ -350,30 +407,28 @@ function calculateScore(form) {
     </div>
   `;
 
-
   return score;
 }
 
-// Add DOMContentLoaded event listener to display initial state
-document.addEventListener("DOMContentLoaded", () => {
-  console.log('Quiz Application Started');
+// Đảm bảo chỉ có một DOMContentLoaded event listener
+const initApp = () => {
+  console.log("Quiz Application Started");
   QuizStorage.displayAll();
-});
 
-document.addEventListener("DOMContentLoaded", function () {
   const history = QuizStorage.getQuizHistory();
-
   if (history.length > 0) {
-      console.group("Quiz History");
-      history.forEach((entry, index) => {
-          console.log(`${index + 1}. Topic: ${entry.topic}`);
-          console.log(`   Score: ${entry.score}`);
-          console.log(`   Date: ${new Date(entry.date).toLocaleString()}`);
-      });
-      console.groupEnd();
+    console.group("Quiz History");
+    history.forEach((entry, index) => {
+      console.log(`${index + 1}. Topic: ${entry.topic}`);
+      console.log(`   Score: ${entry.score}`);
+      console.log(`   Date: ${new Date(entry.date).toLocaleString()}`);
+    });
+    console.groupEnd();
   } else {
-      console.log("This quiz don't have localStorage before");
+    console.log("This quiz don't have localStorage before");
   }
-});
+};
 
-
+// Xóa các event listener DOMContentLoaded cũ
+document.removeEventListener("DOMContentLoaded", () => {});
+document.addEventListener("DOMContentLoaded", initApp, { once: true });
