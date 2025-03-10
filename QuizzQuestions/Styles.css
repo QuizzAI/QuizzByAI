@@ -1,0 +1,82 @@
+/* Cài đặt cho nền body */
+body {
+    background-image: url('../Image/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    font-family: Arial, sans-serif;
+    color: white;
+    text-align: center;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* Cài đặt cho quiz container */
+.quiz-container {
+    background: rgba(0, 0, 0, 0.8); /* Làm mờ khung Quiz */
+    padding: 30px;
+    border-radius: 10px;
+    width: 60%; /* Điều chỉnh độ rộng của quiz container */
+    max-width: 600px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Thêm bóng cho container */
+    text-align: left; /* Căn chỉnh nội dung về trái cho dễ đọc */
+}
+
+/* Cài đặt cho các nút trả lời */
+.answer-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Tăng khoảng cách giữa các nút */
+    margin-top: 20px;
+}
+
+/* Cài đặt cho các nút trả lời */
+.answer-button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.2s ease; /* Thêm hiệu ứng zoom nhẹ khi hover */
+    font-size: 16px;
+    width: 100%;
+}
+
+/* Hiệu ứng hover cho các nút trả lời */
+.answer-button:hover {
+    background: #2980b9;
+    transform: scale(1.05); /* Zoom nhẹ khi hover */
+}
+
+/* Nút trả lời đã được chọn */
+.selected {
+    background: #2ecc71 !important; /* Màu sắc khi chọn đúng */
+}
+
+/* Cài đặt cho nút Next */
+.next-button {
+    margin-top: 25px;
+    background: #e67e22;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.2s ease; /* Thêm hiệu ứng zoom nhẹ khi hover */
+    font-size: 16px;
+    text-align: center;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Hiệu ứng hover cho nút Next */
+.next-button:hover {
+    background: #d35400;
+    transform: scale(1.05); /* Zoom nhẹ khi hover */
+}

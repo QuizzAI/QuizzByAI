@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Question</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="quiz-container">
+        <h2 id="question-number"></h2>
+        <p id="question-text"></p>
+        <div id="answers" class="answer-buttons"></div>
+        <button id="next-btn" class="next-button">Next</button>
+    </div>
+
+    <script>
+        let currentQuestionIndex = 0;
+        let questions = [];
+        let selectedAnswer = null;
+
+        function fetchQuestions() {
+            axios.get('https://jsonplaceholder.typicode.com/posts?_limit=10')
+                .then(response => {
+                    questions = response.data.map((item, index) => {
+                        let correctIndex = Math.floor(Math.random() * 4);
+                        let answers = [
+                            { text: "Option A", correct: false },
+                            { text: "Option B", correct: false },
+                            { text: "Option C", correct: false },
+                            { text: "Option D", correct: false }
+                        ];
+                        answers[correctIndex].correct = true;
+
+                        return {
+                            id: index + 1,
+                            question: `Question ${index + 1}: ${item.title}`,
+                            answers: answers
+                        };
+                    });
+                    displayQuestion();
+                })
+                .catch(error => console.error('Error fetching questions:', error));
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                document.getElementById("question-text").innerText = "Quiz Completed!";
+                document.getElementById("answers").innerHTML = "";
+                document.getElementById("next-btn").style.display = "none";
+                return;
+            }
+
+            let question = questions[currentQuestionIndex];
+            document.getElementById("question-number").innerText = `Question ${question.id}/10`;
+            document.getElementById("question-text").innerText = question.question;
+
+            let answersContainer = document.getElementById("answers");
+            answersContainer.innerHTML = "";
+
+            question.answers.forEach((answer, index) => {
+                let btn = document.createElement("button");
+                btn.className = "answer-button";
+                btn.innerText = `${String.fromCharCode(65 + index)}. ${answer.text}`;
+                btn.onclick = () => selectAnswer(btn, answer.correct);
+                answersContainer.appendChild(btn);
+            });
+        }
+
+        function selectAnswer(button, isCorrect) {
+            selectedAnswer = isCorrect;
+            document.querySelectorAll(".answer-button").forEach(btn => {
+                btn.classList.remove("selected");
+            });
+            button.classList.add("selected");
+        }
+
+        document.getElementById("next-btn").addEventListener("click", () => {
+            currentQuestionIndex++;
+            selectedAnswer = null;
+            displayQuestion();
+        });
+
+        fetchQuestions();
+    </script>
+</body>
+</html>
