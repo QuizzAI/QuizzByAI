@@ -29,6 +29,29 @@ document.addEventListener("DOMContentLoaded", () => {
     historyModal = document.getElementById("historyModal");
     closeHistory = document.getElementById("closeHistory");
 
+    // Restore quiz state if exists
+    const savedQuiz = QuizStorage.getCurrentQuiz();
+    if (savedQuiz) {
+        // Restore topic input
+        if (topicInput) {
+            topicInput.value = savedQuiz.topic;
+        }
+
+        // Restore question count
+        if (questionCountSelect && savedQuiz.questions && savedQuiz.questions.length) {
+            questionCountSelect.value = savedQuiz.questions.length;
+        }
+
+        // Restore quiz state
+        if (savedQuiz.questions) {
+            currentQuestionIndex = savedQuiz.currentQuestionIndex || 0;
+            renderQuiz(savedQuiz.questions, quizForm);
+            if (quizSection) quizSection.classList.remove("hidden");
+            // Restore saved answers
+            QuizStorage.loadQuizDraft();
+        }
+    }
+
     // Set placeholder for topic input
     if (topicInput) {
         topicInput.placeholder = "Vui lòng nhập chủ đề";
@@ -356,33 +379,27 @@ function parseQuizJSON(text) {
 function renderQuiz(quiz, container) {
   console.log("Rendering quiz with data:", JSON.stringify(quiz, null, 2));
   
-  // Basic validation
   if (!quiz) {
     console.error("Quiz data is undefined or null");
     return;
   }
   
-  // It appears quiz.questions might be an object containing the actual quiz
   if (quiz.questions && !Array.isArray(quiz.questions) && quiz.questions.questions && Array.isArray(quiz.questions.questions)) {
     console.log("Detected nested quiz structure, extracting inner quiz");
-    quiz = quiz.questions; // Extract the inner quiz object
+    quiz = quiz.questions;
     console.log("Using extracted quiz:", JSON.stringify(quiz, null, 2));
   }
   
-  // Check if quiz.questions exists
   if (!quiz.questions) {
     console.error("Quiz questions are undefined");
     return;
   }
   
-  // This might be the issue - let's handle different structures
   if (!Array.isArray(quiz.questions)) {
     console.error("Quiz questions is not an array:", typeof quiz.questions);
     
-    // Try to handle common issues
     if (typeof quiz.questions === 'string') {
       try {
-        // Maybe it's a stringified JSON array
         const parsed = JSON.parse(quiz.questions);
         if (Array.isArray(parsed)) {
           console.log("Parsed string into array");
@@ -396,10 +413,8 @@ function renderQuiz(quiz, container) {
         return;
       }
     } else if (quiz.questions && typeof quiz.questions === 'object') {
-      // Check if it has numeric keys (like an array-like object)
       const keys = Object.keys(quiz.questions);
       if (keys.every(key => !isNaN(parseInt(key))) && keys.length > 0) {
-        // Convert object with numeric keys to array
         const tempArray = [];
         keys.sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
           tempArray.push(quiz.questions[key]);
@@ -407,7 +422,6 @@ function renderQuiz(quiz, container) {
         console.log("Converted object with numeric keys to array");
         quiz.questions = tempArray;
       } else {
-        // Last resort: check if it has a property that's an array of questions
         for (const key in quiz.questions) {
           if (Array.isArray(quiz.questions[key])) {
             console.log(`Found array in property ${key}, using it as questions`);
@@ -432,7 +446,6 @@ function renderQuiz(quiz, container) {
     return;
   }
 
-  // Validate and correct currentQuestionIndex
   if (typeof currentQuestionIndex !== 'number') {
     console.warn("currentQuestionIndex is not a number, resetting to 0");
     currentQuestionIndex = 0;
@@ -448,17 +461,14 @@ function renderQuiz(quiz, container) {
     currentQuestionIndex = quiz.questions.length - 1;
   }
 
-  // Get current question
   const currentQuestion = quiz.questions[currentQuestionIndex];
   console.log("Current question:", currentQuestion);
   
-  // Validate current question
   if (!currentQuestion) {
     console.error("Current question is undefined");
     return;
   }
   
-  // Check if we're using the right property names
   const questionText = currentQuestion.question || currentQuestion.text || "";
   const questionAnswers = currentQuestion.answers || currentQuestion.options || [];
   
@@ -470,7 +480,6 @@ function renderQuiz(quiz, container) {
     console.warn("Question answers are missing or invalid for question", currentQuestionIndex);
   }
 
-  // Render the quiz
   container.innerHTML = `
     <form id="quiz-form" onsubmit="event.preventDefault();" class="quiz-container bg-gray-800 rounded-lg p-6">
       <div class="mb-4 text-white">
@@ -503,13 +512,26 @@ function renderQuiz(quiz, container) {
       </div>
       
       <div class="flex justify-between mt-6">
-        <button type="button" id="nextQuestion" 
-          class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200"
-          ${
-            currentQuestionIndex === quiz.questions.length - 1 ? "disabled" : ""
-          }>
-          Next
-        </button>
+        <div class="flex gap-2">
+          <button type="button" id="previousQuestion" 
+            class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200 ${
+              currentQuestionIndex === 0 ? "opacity-50 cursor-not-allowed" : ""
+            }"
+            ${currentQuestionIndex === 0 ? "disabled" : ""}>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <button type="button" id="nextQuestion" 
+            class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200 ${
+              currentQuestionIndex === quiz.questions.length - 1 ? "opacity-50 cursor-not-allowed" : ""
+            }"
+            ${currentQuestionIndex === quiz.questions.length - 1 ? "disabled" : ""}>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
         <button type="button" id="submit-quiz"
           class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200">
           Nộp bài
@@ -518,7 +540,6 @@ function renderQuiz(quiz, container) {
     </form>
   `;
 
-  // Thêm style vào head
   if (!document.getElementById("quiz-styles")) {
     const styleSheet = document.createElement("style");
     styleSheet.id = "quiz-styles";
@@ -539,7 +560,6 @@ function renderQuiz(quiz, container) {
     document.head.appendChild(styleSheet);
   }
 
-  // Xử lý sự kiện change cho radio buttons
   const radioButtons = container.querySelectorAll('input[type="radio"]');
   radioButtons.forEach((radio) => {
     radio.addEventListener("change", () => {
@@ -549,7 +569,17 @@ function renderQuiz(quiz, container) {
     });
   });
 
-  // Xử lý nút Next
+  // Previous button handler
+  const previousButton = document.getElementById("previousQuestion");
+  previousButton.addEventListener("click", () => {
+    if (currentQuestionIndex > 0) {
+      currentQuestionIndex--;
+      renderQuiz(quiz, container);
+      restoreAnswer(currentQuestionIndex);
+    }
+  });
+
+  // Next button handler
   const nextButton = document.getElementById("nextQuestion");
   nextButton.addEventListener("click", () => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
@@ -559,16 +589,15 @@ function renderQuiz(quiz, container) {
     }
   });
 
-  // Khôi phục câu trả lời đã chọn (nếu có)
+  // Restore answer if exists
   restoreAnswer(currentQuestionIndex);
 
-  // Cập nhật trạng thái nút Submit
+  // Update submit button state
   updateSubmitButton(quiz);
 
-  // Thêm event listener cho nút nộp bài
+  // Add submit button handler
   const submitButton = document.getElementById("submit-quiz");
   submitButton.addEventListener("click", () => {
-    // Hiển thị popup xác nhận nộp bài
     const confirmPopup = document.getElementById("confirmPopup");
     const popupTitle = document.getElementById("popupTitle");
     const popupMessage = document.getElementById("popupMessage");
@@ -579,16 +608,28 @@ function renderQuiz(quiz, container) {
     popupMessage.textContent = "Bạn có chắc chắn muốn nộp bài không?";
     confirmPopup.classList.remove("hidden");
 
-    // Xử lý nút No
     noBtn.onclick = () => {
       confirmPopup.classList.add("hidden");
     };
 
-    // Xử lý nút Yes
     yesBtn.onclick = () => {
       confirmPopup.classList.add("hidden");
       submitQuiz(quiz);
     };
+  });
+
+  // Save current quiz state
+  const topic = document.getElementById("topic-input")?.value?.trim();
+  QuizStorage.saveCurrentQuiz(quiz, topic, currentQuestionIndex);
+
+  // Add event listeners for saving draft answers
+  const answerInputs = container.querySelectorAll('input[type="radio"]');
+  answerInputs.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      const questionName = radio.name;
+      const answerValue = radio.value;
+      QuizStorage.saveDraftAnswer(questionName, answerValue);
+    });
   });
 }
 
@@ -732,6 +773,10 @@ function submitQuiz(quiz) {
   // Save the completed quiz before showing results
   QuizStorage.saveLastCompletedQuiz(quiz);
 
+  // Save quiz history with detailed results
+  const topic = document.getElementById("topic-input").value.trim();
+  QuizStorage.saveQuizHistory(topic, score, results);
+
   // Hiển thị kết quả
   const resultSection = document.getElementById("result-section");
   resultSection.classList.remove("hidden");
@@ -802,10 +847,9 @@ function submitQuiz(quiz) {
     });
   }
 
-  // Lưu lịch sử
-  const topic = document.getElementById("topic-input").value.trim();
-  QuizStorage.saveQuizHistory(topic, score);
+  // Clear saved quiz state after submission
   QuizStorage.clearCurrentQuiz();
+  localStorage.removeItem("quizAnswers");
 }
 
 // Thêm hàm helper để xác định ngôn ngữ
