@@ -2,143 +2,257 @@ import QuizStorage from "./storage.js";
 
 const GEMINI_API_KEY = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU"; // Thay bằng khóa thật
 
-const topicInput = document.getElementById("topic-input");
-const generateButton = document.getElementById("generate-quiz");
-const quizSection = document.getElementById("quiz-section");
-const quizForm = document.getElementById("quiz-form");
-const submitButton = document.getElementById("submit-quiz");
-const resultSection = document.getElementById("result-section");
-
-// Thêm biến để theo dõi câu hỏi hiện tại
+// Initialize all DOM elements
+let topicInput;
+let generateButton;
+let quizSection;
+let quizForm;
+let submitButton;
+let resultSection;
+let questionCountSelect;
+let historyBtn;
+let historyModal;
+let closeHistory;
 let currentQuestionIndex = 0;
 
-// Thêm biến cho dropdown
-const questionCountSelect = document.getElementById("question-count");
+// Initialize all event listeners and DOM elements
+document.addEventListener("DOMContentLoaded", () => {
+    // Initialize DOM elements
+    topicInput = document.getElementById("topic-input");
+    generateButton = document.getElementById("generate-quiz");
+    quizSection = document.getElementById("quiz-section");
+    quizForm = document.getElementById("quiz-form");
+    submitButton = document.getElementById("submit-quiz");
+    resultSection = document.getElementById("result-section");
+    questionCountSelect = document.getElementById("question-count");
+    historyBtn = document.getElementById("historyBtn");
+    historyModal = document.getElementById("historyModal");
+    closeHistory = document.getElementById("closeHistory");
+
+    // Set placeholder for topic input
+    if (topicInput) {
+        topicInput.placeholder = "Vui lòng nhập chủ đề";
+    }
+
+    // Initialize event listeners if elements exist
+    if (generateButton) {
+        generateButton.addEventListener("click", () => {
+            const topic = topicInput?.value?.trim();
+            if (!topic) {
+                showAlert("Vui lòng nhập chủ đề!");
+                return;
+            }
+
+            if (!questionCountSelect?.value) {
+                showAlert("Vui lòng chọn số câu hỏi!");
+                return;
+            }
+
+            const lastPrompt = QuizStorage.getLastPrompt();
+            const isReload = topic === lastPrompt;
+            showPopup(isReload ? "reload" : "start", topic);
+        });
+    }
+
+    if (submitButton) {
+        submitButton.addEventListener("click", () => {
+            const score = calculateScore(quizForm);
+            if (resultSection) {
+                resultSection.textContent = `Bạn được ${score} điểm!`;
+                resultSection.classList.remove("hidden");
+            }
+
+            const topic = topicInput?.value?.trim();
+            if (topic) {
+                QuizStorage.saveQuizHistory(topic, score);
+                QuizStorage.clearCurrentQuiz();
+                QuizStorage.displayAll();
+            }
+        });
+    }
+
+    // History button event listeners
+    if (historyBtn) {
+        historyBtn.addEventListener('click', () => {
+            if (historyModal) {
+                historyModal.classList.remove('hidden');
+                QuizStorage.displayHistory();
+            }
+        });
+    }
+
+    if (closeHistory) {
+        closeHistory.addEventListener('click', () => {
+            if (historyModal) {
+                historyModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (historyModal) {
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal) {
+                historyModal.classList.add('hidden');
+            }
+        });
+    }
+
+    // Display initial state
+    QuizStorage.displayAll();
+
+    // Restore any saved question count
+    const savedQuestionCount = localStorage.getItem("preferredQuestionCount");
+    if (savedQuestionCount && questionCountSelect) {
+        questionCountSelect.value = savedQuestionCount;
+    }
+
+    // Save question count on change
+    if (questionCountSelect) {
+        questionCountSelect.addEventListener("change", () => {
+            localStorage.setItem("preferredQuestionCount", questionCountSelect.value);
+        });
+    }
+
+    console.log("Quiz Application Started");
+}, { once: true });
 
 // Thêm hàm hiển thị popup thông báo
 function showAlert(message) {
-  const alertPopup = document.getElementById("alertPopup");
-  const alertMessage = document.getElementById("alertMessage");
-  const alertOkBtn = document.getElementById("alertOkBtn");
+    const alertPopup = document.getElementById("alertPopup");
+    const alertMessage = document.getElementById("alertMessage");
+    const alertOkBtn = document.getElementById("alertOkBtn");
 
-  alertMessage.textContent = message;
-  alertPopup.classList.remove("hidden");
+    if (alertPopup && alertMessage && alertOkBtn) {
+        alertMessage.textContent = message;
+        alertPopup.classList.remove("hidden");
 
-  // Xử lý nút OK
-  alertOkBtn.onclick = () => {
-    alertPopup.classList.add("hidden");
-  };
-}
-
-// Thêm hàm showPopup vào đầu file
-function showPopup(type, topic) {
-  const confirmPopup = document.getElementById("confirmPopup");
-  const popupTitle = document.getElementById("popupTitle");
-  const popupMessage = document.getElementById("popupMessage");
-  const yesBtn = document.getElementById("yesBtn");
-  const noBtn = document.getElementById("noBtn");
-
-  if (type === "start") {
-    const numberOfQuestions = questionCountSelect.value;
-    popupTitle.textContent = "Xác nhận bắt đầu quiz";
-    popupMessage.textContent = `Bạn có chắc chắn muốn bắt đầu quiz với ${numberOfQuestions} câu hỏi không?`;
-  }
-
-  confirmPopup.classList.remove("hidden");
-
-  // Xử lý nút No
-  noBtn.onclick = () => {
-    confirmPopup.classList.add("hidden");
-  };
-
-  // Xử lý nút Yes
-  yesBtn.onclick = async () => {
-    confirmPopup.classList.add("hidden");
-    document.getElementById("loading").classList.remove("hidden");
-
-    try {
-      const quiz = await fetchQuizFromGemini(topic);
-      if (quiz) {
-        currentQuestionIndex = 0;
-        localStorage.removeItem("quizAnswers");
-        renderQuiz(quiz, quizForm);
-        quizSection.classList.remove("hidden");
-        resultSection.classList.add("hidden");
-        QuizStorage.saveCurrentQuiz(quiz, topic);
-      }
-    } catch (error) {
-      showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
-    } finally {
-      document.getElementById("loading").classList.add("hidden");
-      generateButton.disabled = false;
-      generateButton.textContent = "Start Quiz";
+        // Xử lý nút OK
+        alertOkBtn.onclick = () => {
+            alertPopup.classList.add("hidden");
+        };
     }
-  };
 }
 
-// Xóa event listener cũ của generateButton và thay thế bằng code mới
-generateButton.removeEventListener("click", async () => {});
+// Thêm hàm showPopup
+function showPopup(type, topic) {
+    const confirmPopup = document.getElementById("confirmPopup");
+    const popupTitle = document.getElementById("popupTitle");
+    const popupMessage = document.getElementById("popupMessage");
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn = document.getElementById("noBtn");
 
-generateButton.addEventListener("click", () => {
-  const topic = topicInput.value.trim();
-  if (!topic) {
-    showAlert("Vui lòng nhập chủ đề!");
-    return;
-  }
+    if (!confirmPopup || !popupTitle || !popupMessage || !yesBtn || !noBtn) return;
 
-  if (!questionCountSelect.value) {
-    showAlert("Vui lòng chọn số câu hỏi!");
-    return;
-  }
+    const numberOfQuestions = questionCountSelect?.value;
 
-  showPopup("start", topic);
-});
+    if (type === "start") {
+        popupTitle.textContent = "Xác nhận bắt đầu quiz mới";
+        popupMessage.textContent = `Bạn có muốn bắt đầu quiz mới với chủ đề "${topic}" và ${numberOfQuestions} câu hỏi không?`;
+    } else if (type === "reload") {
+        popupTitle.textContent = "Tải lại quiz";
+        popupMessage.textContent = `Bạn có muốn tải lại quiz "${topic}" với ${numberOfQuestions} câu hỏi không? Một số câu hỏi có thể sẽ được lặp lại.`;
+    } else if (type === "redo") {
+        popupTitle.textContent = "Làm lại bài test";
+        popupMessage.textContent = `Bạn có muốn làm lại bài quiz "${topic}" không? Thứ tự câu hỏi sẽ được thay đổi.`;
+    }
 
-submitButton.addEventListener("click", () => {
-  const score = calculateScore(quizForm);
-  resultSection.textContent = `Bạn được ${score} điểm!`;
-  resultSection.classList.remove("hidden");
+    confirmPopup.classList.remove("hidden");
 
-  const topic = topicInput.value.trim();
-  QuizStorage.saveQuizHistory(topic, score);
-  QuizStorage.clearCurrentQuiz();
+    // Handle No button
+    noBtn.onclick = () => {
+        confirmPopup.classList.add("hidden");
+        if (type === "redo") {
+            // Stay on the results page
+            return;
+        }
+    };
 
-  // Display full application state after submission
-  QuizStorage.displayAll();
-});
+    // Handle Yes button
+    yesBtn.onclick = async () => {
+        confirmPopup.classList.add("hidden");
+        const loading = document.getElementById("loading");
+        if (loading) loading.classList.remove("hidden");
+
+        try {
+            let quiz;
+            if (type === "redo") {
+                // Get the last completed quiz and shuffle its questions
+                const lastQuiz = QuizStorage.getLastCompletedQuiz();
+                quiz = QuizStorage.shuffleQuizQuestions(lastQuiz);
+            } else {
+                quiz = await fetchQuizFromGemini(topic);
+            }
+
+            if (quiz) {
+                currentQuestionIndex = 0;
+                localStorage.removeItem("quizAnswers");
+                renderQuiz(quiz, quizForm);
+                if (quizSection) quizSection.classList.remove("hidden");
+                if (resultSection) resultSection.classList.add("hidden");
+                QuizStorage.saveCurrentQuiz(quiz, topic);
+                if (type !== "redo") {
+                    QuizStorage.saveLastPrompt(topic);
+                }
+            }
+        } catch (error) {
+            showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
+        } finally {
+            if (loading) loading.classList.add("hidden");
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.textContent = type === "reload" ? "Reload Quiz" : "Start Quiz";
+            }
+        }
+    };
+}
 
 async function fetchQuizFromGemini(topic) {
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-  // Lấy số câu hỏi từ dropdown
+  // Get number of questions from dropdown
   const numberOfQuestions = parseInt(questionCountSelect.value);
-  let language = "Vietnamese"; // Mặc định tiếng Việt
+  let language = "Vietnamese";
 
-  // Phân tích ngôn ngữ từ input (nếu có)
-  if (
-    topic.toLowerCase().includes("english") ||
-    topic.toLowerCase().includes("eng")
-  ) {
+  if (topic.toLowerCase().includes("english") || topic.toLowerCase().includes("eng")) {
     language = "English";
     topic = topic.replace(/english|eng/gi, "").trim();
   }
 
+  // Check if we're reloading with the same topic
+  const lastPrompt = QuizStorage.getLastPrompt();
+  const isReload = topic === lastPrompt;
+
+  // If reloading, try to get existing questions first
+  if (isReload) {
+    const existingQuestions = QuizStorage.getRandomQuestionsForTopic(topic, numberOfQuestions);
+    if (existingQuestions.length === numberOfQuestions) {
+      return {
+        id: Date.now(),
+        title: topic,
+        questions: existingQuestions,
+        status: "incomplete"
+      };
+    }
+  }
+
+  // If not reloading or not enough existing questions, generate new ones
   const prompt = `Generate a quiz with ${numberOfQuestions} multiple choice questions about "${topic}" in ${language}. 
 Return ONLY a JSON object in this EXACT format, with NO additional text or markdown:
 {
-  "title": "${topic}",
-  "questions": [
-    {
-      "question": "Question text here",
-      "answers": ["Answer 1", "Answer 2", "Answer 3", "Answer 4"],
-      "correctAnswerIndex": 0
-    }
-  ]
+"title": "${topic}",
+"questions": [
+  {
+    "question": "Question text here",
+    "answers": ["Answer 1", "Answer 2", "Answer 3", "Answer 4"],
+    "correctAnswerIndex": 0
+  }
+]
 }
 
 Requirements:
 - Create exactly ${numberOfQuestions} questions
 - Questions and answers must be in ${language}
+- Questions must be directly related to "${topic}"
 - correctAnswerIndex must be 0-3
 - DO NOT include \`\`\` or any markdown
 - DO NOT add any explanation text
@@ -161,32 +275,33 @@ Requirements:
     });
 
     const data = await response.json();
+    console.log("Full API response:", data); // Log full response
 
     if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
       const textResult = data.candidates[0].content.parts[0].text;
-      console.log("Raw API response:", textResult);
-      return parseQuizJSON(textResult);
+      const parsedQuiz = parseQuizJSON(textResult);
+      
+      if (parsedQuiz) {
+        // Save the new questions for this topic
+        QuizStorage.saveTopicQuestions(topic, parsedQuiz.questions);
+        return parsedQuiz;
+      }
     } else {
       console.error("Invalid API response structure:", data);
-      showAlert("Không thể tạo quiz. Vui lòng thử lại sau!");
       return null;
     }
   } catch (error) {
     console.error("API call error:", error);
-    showAlert("Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại!");
     return null;
   }
 }
 
 function parseQuizJSON(text) {
   try {
-    // Debug log để xem dữ liệu thô
     console.log("Raw text received:", text);
 
-    // Tìm và trích xuất phần JSON từ response
     let jsonText = text;
 
-    // Xóa markdown code blocks nếu có
     if (text.includes("```")) {
       const matches = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
       if (matches && matches[1]) {
@@ -194,18 +309,24 @@ function parseQuizJSON(text) {
       }
     }
 
-    // Xóa khoảng trắng và ký tự đặc biệt ở đầu/cuối
     jsonText = jsonText.trim();
-
-    // Debug log sau khi xử lý
     console.log("Cleaned JSON text:", jsonText);
 
-    // Parse JSON
-    const quizData = JSON.parse(jsonText);
+    let quizData;
+    try {
+      quizData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("JSON parsing error:", parseError);
+      return null;
+    }
 
-    // Validate cấu trúc dữ liệu
-    if (!quizData.title || !Array.isArray(quizData.questions)) {
-      throw new Error("Invalid quiz data structure");
+    if (!quizData.title) {
+      console.error("Missing quiz title");
+      return null;
+    }
+    if (!Array.isArray(quizData.questions)) {
+      console.error("Missing or invalid questions array");
+      return null;
     }
 
     quizData.questions.forEach((q, index) => {
@@ -215,7 +336,8 @@ function parseQuizJSON(text) {
         q.answers.length !== 4 ||
         typeof q.correctAnswerIndex !== "number"
       ) {
-        throw new Error(`Invalid question format at index ${index}`);
+        console.error(`Invalid question format at index ${index}`);
+        return null;
       }
     });
 
@@ -231,30 +353,124 @@ function parseQuizJSON(text) {
   }
 }
 
-// Đầu tiên, đưa hàm updateProgress vào global scope
-window.updateProgress = function () {
-  const currentRadios = document.querySelectorAll(
-    `input[name="q${currentQuestionIndex}"]`
-  );
-  const selectedAnswer = Array.from(currentRadios).findIndex(
-    (radio) => radio.checked
-  );
-
-  if (selectedAnswer !== -1) {
-    saveAnswer(currentQuestionIndex, selectedAnswer);
+function renderQuiz(quiz, container) {
+  console.log("Rendering quiz with data:", JSON.stringify(quiz, null, 2));
+  
+  // Basic validation
+  if (!quiz) {
+    console.error("Quiz data is undefined or null");
+    return;
+  }
+  
+  // It appears quiz.questions might be an object containing the actual quiz
+  if (quiz.questions && !Array.isArray(quiz.questions) && quiz.questions.questions && Array.isArray(quiz.questions.questions)) {
+    console.log("Detected nested quiz structure, extracting inner quiz");
+    quiz = quiz.questions; // Extract the inner quiz object
+    console.log("Using extracted quiz:", JSON.stringify(quiz, null, 2));
+  }
+  
+  // Check if quiz.questions exists
+  if (!quiz.questions) {
+    console.error("Quiz questions are undefined");
+    return;
+  }
+  
+  // This might be the issue - let's handle different structures
+  if (!Array.isArray(quiz.questions)) {
+    console.error("Quiz questions is not an array:", typeof quiz.questions);
+    
+    // Try to handle common issues
+    if (typeof quiz.questions === 'string') {
+      try {
+        // Maybe it's a stringified JSON array
+        const parsed = JSON.parse(quiz.questions);
+        if (Array.isArray(parsed)) {
+          console.log("Parsed string into array");
+          quiz.questions = parsed;
+        } else {
+          console.error("Parsed string but result is not an array");
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to parse questions string:", error);
+        return;
+      }
+    } else if (quiz.questions && typeof quiz.questions === 'object') {
+      // Check if it has numeric keys (like an array-like object)
+      const keys = Object.keys(quiz.questions);
+      if (keys.every(key => !isNaN(parseInt(key))) && keys.length > 0) {
+        // Convert object with numeric keys to array
+        const tempArray = [];
+        keys.sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+          tempArray.push(quiz.questions[key]);
+        });
+        console.log("Converted object with numeric keys to array");
+        quiz.questions = tempArray;
+      } else {
+        // Last resort: check if it has a property that's an array of questions
+        for (const key in quiz.questions) {
+          if (Array.isArray(quiz.questions[key])) {
+            console.log(`Found array in property ${key}, using it as questions`);
+            quiz.questions = quiz.questions[key];
+            break;
+          }
+        }
+        
+        if (!Array.isArray(quiz.questions)) {
+          console.error("Could not convert questions to array");
+          return;
+        }
+      }
+    } else {
+      console.error("Cannot process quiz questions type:", typeof quiz.questions);
+      return;
+    }
+  }
+  
+  if (quiz.questions.length === 0) {
+    console.error("Quiz questions array is empty");
+    return;
   }
 
-  // Kiểm tra xem đã trả lời hết các câu chưa
-  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
-  const answeredCount = Object.keys(answers).length;
-  const quiz = JSON.parse(localStorage.getItem("currentQuiz"));
+  // Validate and correct currentQuestionIndex
+  if (typeof currentQuestionIndex !== 'number') {
+    console.warn("currentQuestionIndex is not a number, resetting to 0");
+    currentQuestionIndex = 0;
+  }
+  
+  if (currentQuestionIndex < 0) {
+    console.warn("currentQuestionIndex is negative, resetting to 0");
+    currentQuestionIndex = 0;
+  }
+  
+  if (currentQuestionIndex >= quiz.questions.length) {
+    console.warn(`currentQuestionIndex (${currentQuestionIndex}) is out of bounds, setting to last question`);
+    currentQuestionIndex = quiz.questions.length - 1;
+  }
 
-  document.getElementById("submit-quiz").disabled =
-    answeredCount < quiz.questions.length;
-};
+  // Get current question
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  console.log("Current question:", currentQuestion);
+  
+  // Validate current question
+  if (!currentQuestion) {
+    console.error("Current question is undefined");
+    return;
+  }
+  
+  // Check if we're using the right property names
+  const questionText = currentQuestion.question || currentQuestion.text || "";
+  const questionAnswers = currentQuestion.answers || currentQuestion.options || [];
+  
+  if (!questionText) {
+    console.warn("Question text is missing for question", currentQuestionIndex);
+  }
+  
+  if (!Array.isArray(questionAnswers) || questionAnswers.length === 0) {
+    console.warn("Question answers are missing or invalid for question", currentQuestionIndex);
+  }
 
-// Sửa lại phần renderQuiz để sử dụng addEventListener thay vì inline handler
-function renderQuiz(quiz, container) {
+  // Render the quiz
   container.innerHTML = `
     <form id="quiz-form" onsubmit="event.preventDefault();" class="quiz-container bg-gray-800 rounded-lg p-6">
       <div class="mb-4 text-white">
@@ -397,6 +613,33 @@ function restoreAnswer(questionIndex) {
   }
 }
 
+// Cập nhật hàm updateProgress
+function updateProgress() {
+  const currentRadios = document.querySelectorAll(
+    `input[name="q${currentQuestionIndex}"]`
+  );
+  const selectedAnswer = Array.from(currentRadios).findIndex(
+    (radio) => radio.checked
+  );
+
+  if (selectedAnswer !== -1) {
+    QuizStorage.saveDraftAnswer(`q${currentQuestionIndex}`, selectedAnswer);
+  }
+
+  // Kiểm tra xem đã trả lời hết các câu chưa
+  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
+  const answeredCount = Object.keys(answers).length;
+  const submitButton = document.getElementById("submit-quiz");
+  if (submitButton) {
+    submitButton.disabled = answeredCount < quiz.questions.length;
+    if (submitButton.disabled) {
+      submitButton.classList.add("opacity-50", "cursor-not-allowed");
+    } else {
+      submitButton.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+  }
+}
+
 // Thêm hàm để cập nhật trạng thái nút Submit
 function updateSubmitButton(quiz) {
   const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
@@ -447,13 +690,11 @@ function calculateScore(form) {
         ${results
           .map(
             (result, index) => `
-          <div class="p-3 ${
-            result.isCorrect ? "bg-green-50" : "bg-red-50"
-          } rounded">
+          <div class="p-3 ${result.isCorrect ? "bg-green-50" : "bg-red-50"} rounded">
             <p class="font-medium">Câu ${index + 1}: ${result.question}</p>
             <p class="text-sm mt-1">
               ${
-                result.isCorrect
+                result.isCorrect 
                   ? `<span class="text-green-600">✓ Đúng!</span>`
                   : `<span class="text-red-600">✗ Sai. Đáp án đúng: ${result.correctAnswer}</span>`
               }
@@ -487,6 +728,9 @@ function submitQuiz(quiz) {
       isCorrect,
     });
   });
+
+  // Save the completed quiz before showing results
+  QuizStorage.saveLastCompletedQuiz(quiz);
 
   // Hiển thị kết quả
   const resultSection = document.getElementById("result-section");
@@ -527,13 +771,36 @@ function submitQuiz(quiz) {
           )
           .join("")}
       </div>
-      <button 
-        onclick="location.reload()" 
-        class="mt-6 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200">
-        Làm lại bài test
-      </button>
+      <div class="flex gap-4 mt-6">
+        <button 
+          id="redoQuizBtn"
+          class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200">
+          RedoQuiz
+        </button>
+        <button 
+          id="homeBtn"
+          class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200">
+          Return homepage
+        </button>
+      </div>
     </div>
   `;
+
+  // Add event listeners for the buttons
+  const redoQuizBtn = document.getElementById("redoQuizBtn");
+  const homeBtn = document.getElementById("homeBtn");
+
+  if (redoQuizBtn) {
+    redoQuizBtn.addEventListener("click", () => {
+      showPopup("redo", quiz.title);
+    });
+  }
+
+  if (homeBtn) {
+    homeBtn.addEventListener("click", () => {
+      location.reload();
+    });
+  }
 
   // Lưu lịch sử
   const topic = document.getElementById("topic-input").value.trim();
@@ -558,43 +825,3 @@ function detectLanguage(topic) {
 
   return "Vietnamese"; // Mặc định là tiếng Việt
 }
-
-// Cập nhật placeholder cho input
-document.addEventListener("DOMContentLoaded", () => {
-  const topicInput = document.getElementById("topic-input");
-  topicInput.placeholder = "Nhập chủ đề (thêm 'English' cho câu hỏi tiếng Anh)";
-});
-
-// Đảm bảo chỉ có một DOMContentLoaded event listener
-const initApp = () => {
-  console.log("Quiz Application Started");
-  QuizStorage.displayAll();
-
-  // Khôi phục số câu hỏi đã chọn trước đó (nếu có)
-  const savedQuestionCount = localStorage.getItem("preferredQuestionCount");
-  if (savedQuestionCount) {
-    questionCountSelect.value = savedQuestionCount;
-  }
-
-  // Lưu số câu hỏi được chọn
-  questionCountSelect.addEventListener("change", () => {
-    localStorage.setItem("preferredQuestionCount", questionCountSelect.value);
-  });
-
-  const history = QuizStorage.getQuizHistory();
-  if (history.length > 0) {
-    console.group("Quiz History");
-    history.forEach((entry, index) => {
-      console.log(`${index + 1}. Topic: ${entry.topic}`);
-      console.log(`   Score: ${entry.score}`);
-      console.log(`   Date: ${new Date(entry.date).toLocaleString()}`);
-    });
-    console.groupEnd();
-  } else {
-    console.log("This quiz don't have localStorage before");
-  }
-};
-
-// Xóa các event listener DOMContentLoaded cũ
-document.removeEventListener("DOMContentLoaded", () => {});
-document.addEventListener("DOMContentLoaded", initApp, { once: true });

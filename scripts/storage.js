@@ -1,6 +1,9 @@
 class QuizStorage {
     static CURRENT_QUIZ_KEY = 'currentQuiz';
     static QUIZ_HISTORY_KEY = 'quizHistory';
+    static LAST_PROMPT_KEY = 'lastPrompt';
+    static TOPIC_QUESTIONS_KEY = 'topicQuestions';
+    static LAST_COMPLETED_QUIZ_KEY = 'lastCompletedQuiz';
 
     static saveCurrentQuiz(quiz, topic, currentQuestionIndex) {
         const quizData = {
@@ -21,6 +24,7 @@ class QuizStorage {
 
     static clearCurrentQuiz() {
         localStorage.removeItem(this.CURRENT_QUIZ_KEY);
+        localStorage.removeItem(this.LAST_PROMPT_KEY);
     }
 
     static saveQuizHistory(topic, score) {
@@ -110,6 +114,67 @@ class QuizStorage {
             const input = document.querySelector(`input[name="${key}"][value="${draftAnswers[key]}"]`);
             if (input) input.checked = true;
         });
+    }
+
+    static saveLastPrompt(prompt) {
+        localStorage.setItem(this.LAST_PROMPT_KEY, prompt);
+    }
+
+    static getLastPrompt() {
+        return localStorage.getItem(this.LAST_PROMPT_KEY);
+    }
+
+    static saveTopicQuestions(topic, questions) {
+        const topicQuestions = this.getTopicQuestions();
+        if (!topicQuestions[topic]) {
+            topicQuestions[topic] = [];
+        }
+        // Add new questions while avoiding duplicates
+        questions.forEach(newQuestion => {
+            const isDuplicate = topicQuestions[topic].some(existingQuestion => 
+                existingQuestion.question === newQuestion.question
+            );
+            if (!isDuplicate) {
+                topicQuestions[topic].push(newQuestion);
+            }
+        });
+        localStorage.setItem(this.TOPIC_QUESTIONS_KEY, JSON.stringify(topicQuestions));
+    }
+
+    static getTopicQuestions() {
+        const questions = localStorage.getItem(this.TOPIC_QUESTIONS_KEY);
+        return questions ? JSON.parse(questions) : {};
+    }
+
+    static getRandomQuestionsForTopic(topic, count) {
+        const topicQuestions = this.getTopicQuestions();
+        const questions = topicQuestions[topic] || [];
+        
+        // Shuffle questions
+        const shuffled = [...questions].sort(() => Math.random() - 0.5);
+        
+        // Return requested number of questions or all available if less than requested
+        return shuffled.slice(0, count);
+    }
+
+    static saveLastCompletedQuiz(quiz) {
+        localStorage.setItem(this.LAST_COMPLETED_QUIZ_KEY, JSON.stringify(quiz));
+    }
+
+    static getLastCompletedQuiz() {
+        const quiz = localStorage.getItem(this.LAST_COMPLETED_QUIZ_KEY);
+        return quiz ? JSON.parse(quiz) : null;
+    }
+
+    static shuffleQuizQuestions(quiz) {
+        if (!quiz || !quiz.questions) return quiz;
+        const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
+        return {
+            ...quiz,
+            questions: shuffledQuestions,
+            id: Date.now(), // New ID for the shuffled quiz
+            status: "incomplete"
+        };
     }
 }
 
