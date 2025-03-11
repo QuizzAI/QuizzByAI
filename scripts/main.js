@@ -239,14 +239,14 @@ async function fetchQuizFromGemini(topic) {
   const prompt = `Generate a quiz with ${numberOfQuestions} multiple choice questions about "${topic}" in ${language}. 
 Return ONLY a JSON object in this EXACT format, with NO additional text or markdown:
 {
-  "title": "${topic}",
-  "questions": [
-    {
-      "question": "Question text here",
-      "answers": ["Answer 1", "Answer 2", "Answer 3", "Answer 4"],
-      "correctAnswerIndex": 0
-    }
-  ]
+"title": "${topic}",
+"questions": [
+  {
+    "question": "Question text here",
+    "answers": ["Answer 1", "Answer 2", "Answer 3", "Answer 4"],
+    "correctAnswerIndex": 0
+  }
+]
 }
 
 Requirements:
@@ -275,6 +275,7 @@ Requirements:
     });
 
     const data = await response.json();
+    console.log("Full API response:", data); // Log full response
 
     if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
       const textResult = data.candidates[0].content.parts[0].text;
@@ -287,25 +288,20 @@ Requirements:
       }
     } else {
       console.error("Invalid API response structure:", data);
-      showAlert("Không thể tạo quiz. Vui lòng thử lại sau!");
       return null;
     }
   } catch (error) {
     console.error("API call error:", error);
-    showAlert("Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại!");
     return null;
   }
 }
 
 function parseQuizJSON(text) {
   try {
-    // Debug log để xem dữ liệu thô
     console.log("Raw text received:", text);
 
-    // Tìm và trích xuất phần JSON từ response
     let jsonText = text;
 
-    // Xóa markdown code blocks nếu có
     if (text.includes("```")) {
       const matches = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
       if (matches && matches[1]) {
@@ -313,18 +309,24 @@ function parseQuizJSON(text) {
       }
     }
 
-    // Xóa khoảng trắng và ký tự đặc biệt ở đầu/cuối
     jsonText = jsonText.trim();
-
-    // Debug log sau khi xử lý
     console.log("Cleaned JSON text:", jsonText);
 
-    // Parse JSON
-    const quizData = JSON.parse(jsonText);
+    let quizData;
+    try {
+      quizData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("JSON parsing error:", parseError);
+      return null;
+    }
 
-    // Validate cấu trúc dữ liệu
-    if (!quizData.title || !Array.isArray(quizData.questions)) {
-      throw new Error("Invalid quiz data structure");
+    if (!quizData.title) {
+      console.error("Missing quiz title");
+      return null;
+    }
+    if (!Array.isArray(quizData.questions)) {
+      console.error("Missing or invalid questions array");
+      return null;
     }
 
     quizData.questions.forEach((q, index) => {
@@ -334,7 +336,8 @@ function parseQuizJSON(text) {
         q.answers.length !== 4 ||
         typeof q.correctAnswerIndex !== "number"
       ) {
-        throw new Error(`Invalid question format at index ${index}`);
+        console.error(`Invalid question format at index ${index}`);
+        return null;
       }
     });
 
@@ -350,30 +353,124 @@ function parseQuizJSON(text) {
   }
 }
 
-// Đầu tiên, đưa hàm updateProgress vào global scope
-window.updateProgress = function () {
-  const currentRadios = document.querySelectorAll(
-    `input[name="q${currentQuestionIndex}"]`
-  );
-  const selectedAnswer = Array.from(currentRadios).findIndex(
-    (radio) => radio.checked
-  );
-
-  if (selectedAnswer !== -1) {
-    saveAnswer(currentQuestionIndex, selectedAnswer);
+function renderQuiz(quiz, container) {
+  console.log("Rendering quiz with data:", JSON.stringify(quiz, null, 2));
+  
+  // Basic validation
+  if (!quiz) {
+    console.error("Quiz data is undefined or null");
+    return;
+  }
+  
+  // It appears quiz.questions might be an object containing the actual quiz
+  if (quiz.questions && !Array.isArray(quiz.questions) && quiz.questions.questions && Array.isArray(quiz.questions.questions)) {
+    console.log("Detected nested quiz structure, extracting inner quiz");
+    quiz = quiz.questions; // Extract the inner quiz object
+    console.log("Using extracted quiz:", JSON.stringify(quiz, null, 2));
+  }
+  
+  // Check if quiz.questions exists
+  if (!quiz.questions) {
+    console.error("Quiz questions are undefined");
+    return;
+  }
+  
+  // This might be the issue - let's handle different structures
+  if (!Array.isArray(quiz.questions)) {
+    console.error("Quiz questions is not an array:", typeof quiz.questions);
+    
+    // Try to handle common issues
+    if (typeof quiz.questions === 'string') {
+      try {
+        // Maybe it's a stringified JSON array
+        const parsed = JSON.parse(quiz.questions);
+        if (Array.isArray(parsed)) {
+          console.log("Parsed string into array");
+          quiz.questions = parsed;
+        } else {
+          console.error("Parsed string but result is not an array");
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to parse questions string:", error);
+        return;
+      }
+    } else if (quiz.questions && typeof quiz.questions === 'object') {
+      // Check if it has numeric keys (like an array-like object)
+      const keys = Object.keys(quiz.questions);
+      if (keys.every(key => !isNaN(parseInt(key))) && keys.length > 0) {
+        // Convert object with numeric keys to array
+        const tempArray = [];
+        keys.sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+          tempArray.push(quiz.questions[key]);
+        });
+        console.log("Converted object with numeric keys to array");
+        quiz.questions = tempArray;
+      } else {
+        // Last resort: check if it has a property that's an array of questions
+        for (const key in quiz.questions) {
+          if (Array.isArray(quiz.questions[key])) {
+            console.log(`Found array in property ${key}, using it as questions`);
+            quiz.questions = quiz.questions[key];
+            break;
+          }
+        }
+        
+        if (!Array.isArray(quiz.questions)) {
+          console.error("Could not convert questions to array");
+          return;
+        }
+      }
+    } else {
+      console.error("Cannot process quiz questions type:", typeof quiz.questions);
+      return;
+    }
+  }
+  
+  if (quiz.questions.length === 0) {
+    console.error("Quiz questions array is empty");
+    return;
   }
 
-  // Kiểm tra xem đã trả lời hết các câu chưa
-  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
-  const answeredCount = Object.keys(answers).length;
-  const quiz = JSON.parse(localStorage.getItem("currentQuiz"));
+  // Validate and correct currentQuestionIndex
+  if (typeof currentQuestionIndex !== 'number') {
+    console.warn("currentQuestionIndex is not a number, resetting to 0");
+    currentQuestionIndex = 0;
+  }
+  
+  if (currentQuestionIndex < 0) {
+    console.warn("currentQuestionIndex is negative, resetting to 0");
+    currentQuestionIndex = 0;
+  }
+  
+  if (currentQuestionIndex >= quiz.questions.length) {
+    console.warn(`currentQuestionIndex (${currentQuestionIndex}) is out of bounds, setting to last question`);
+    currentQuestionIndex = quiz.questions.length - 1;
+  }
 
-  document.getElementById("submit-quiz").disabled =
-    answeredCount < quiz.questions.length;
-};
+  // Get current question
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  console.log("Current question:", currentQuestion);
+  
+  // Validate current question
+  if (!currentQuestion) {
+    console.error("Current question is undefined");
+    return;
+  }
+  
+  // Check if we're using the right property names
+  const questionText = currentQuestion.question || currentQuestion.text || "";
+  const questionAnswers = currentQuestion.answers || currentQuestion.options || [];
+  
+  if (!questionText) {
+    console.warn("Question text is missing for question", currentQuestionIndex);
+  }
+  
+  if (!Array.isArray(questionAnswers) || questionAnswers.length === 0) {
+    console.warn("Question answers are missing or invalid for question", currentQuestionIndex);
+  }
 
-// Sửa lại phần renderQuiz để sử dụng addEventListener thay vì inline handler
-function renderQuiz(quiz, container) {
+  // Render the quiz
   container.innerHTML = `
     <form id="quiz-form" onsubmit="event.preventDefault();" class="quiz-container bg-gray-800 rounded-lg p-6">
       <div class="mb-4 text-white">
@@ -516,6 +613,33 @@ function restoreAnswer(questionIndex) {
   }
 }
 
+// Cập nhật hàm updateProgress
+function updateProgress() {
+  const currentRadios = document.querySelectorAll(
+    `input[name="q${currentQuestionIndex}"]`
+  );
+  const selectedAnswer = Array.from(currentRadios).findIndex(
+    (radio) => radio.checked
+  );
+
+  if (selectedAnswer !== -1) {
+    QuizStorage.saveDraftAnswer(`q${currentQuestionIndex}`, selectedAnswer);
+  }
+
+  // Kiểm tra xem đã trả lời hết các câu chưa
+  const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
+  const answeredCount = Object.keys(answers).length;
+  const submitButton = document.getElementById("submit-quiz");
+  if (submitButton) {
+    submitButton.disabled = answeredCount < quiz.questions.length;
+    if (submitButton.disabled) {
+      submitButton.classList.add("opacity-50", "cursor-not-allowed");
+    } else {
+      submitButton.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+  }
+}
+
 // Thêm hàm để cập nhật trạng thái nút Submit
 function updateSubmitButton(quiz) {
   const answers = JSON.parse(localStorage.getItem("quizAnswers") || "{}");
@@ -566,13 +690,11 @@ function calculateScore(form) {
         ${results
           .map(
             (result, index) => `
-          <div class="p-3 ${
-            result.isCorrect ? "bg-green-50" : "bg-red-50"
-          } rounded">
+          <div class="p-3 ${result.isCorrect ? "bg-green-50" : "bg-red-50"} rounded">
             <p class="font-medium">Câu ${index + 1}: ${result.question}</p>
             <p class="text-sm mt-1">
               ${
-                result.isCorrect
+                result.isCorrect 
                   ? `<span class="text-green-600">✓ Đúng!</span>`
                   : `<span class="text-red-600">✗ Sai. Đáp án đúng: ${result.correctAnswer}</span>`
               }
