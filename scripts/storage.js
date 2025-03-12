@@ -13,7 +13,8 @@ class QuizStorage {
             currentQuestionIndex: currentQuestionIndex,
             draftAnswers: this.getCurrentDraftAnswers(),
             timestamp: new Date().toISOString(),
-            status: 'incomplete'
+            status: 'incomplete',
+            progress: this.calculateQuizProgress(quiz, this.getCurrentDraftAnswers())
         };
         localStorage.setItem(this.CURRENT_QUIZ_KEY, JSON.stringify(quizData));
         // Also save to incomplete quiz history
@@ -21,16 +22,30 @@ class QuizStorage {
         this.displayCurrentQuiz();
     }
 
+    static calculateQuizProgress(quiz, draftAnswers) {
+        if (!quiz || !quiz.questions) return 0;
+        const totalQuestions = quiz.questions.length;
+        const answeredQuestions = Object.keys(draftAnswers).length;
+        return Math.round((answeredQuestions / totalQuestions) * 100);
+    }
+
     static saveIncompleteQuiz(quizData) {
         const incompleteQuizzes = this.getIncompleteQuizzes();
         const existingIndex = incompleteQuizzes.findIndex(q => q.topic === quizData.topic);
         
         if (existingIndex !== -1) {
-            // Update existing incomplete quiz
-            incompleteQuizzes[existingIndex] = quizData;
+            // Update existing incomplete quiz while preserving progress
+            incompleteQuizzes[existingIndex] = {
+                ...incompleteQuizzes[existingIndex],
+                ...quizData,
+                lastUpdated: new Date().toISOString()
+            };
         } else {
             // Add new incomplete quiz
-            incompleteQuizzes.push(quizData);
+            incompleteQuizzes.push({
+                ...quizData,
+                lastUpdated: new Date().toISOString()
+            });
         }
         
         localStorage.setItem(this.INCOMPLETE_QUIZ_KEY, JSON.stringify(incompleteQuizzes));
@@ -109,12 +124,12 @@ class QuizStorage {
         
         if (history.length === 0 && incompleteQuizzes.length === 0) {
             historyContent.innerHTML = `
-                <div class="text-center py-4">
-                    <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="text-center py-3">
+                    <svg class="mx-auto h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    <h3 class="mt-1 text-xs font-medium text-gray-900">No quiz history</h3>
-                    <p class="text-xs text-gray-500">Get started by taking your first quiz!</p>
+                    <h3 class="mt-1 text-xs font-medium text-gray-900">Chưa có lịch sử</h3>
+                    <p class="text-[10px] text-gray-500">Hãy bắt đầu làm quiz!</p>
                 </div>`;
             return;
         }
@@ -124,20 +139,21 @@ class QuizStorage {
             ...incompleteQuizzes.map(q => ({
                 ...q,
                 isIncomplete: true,
-                date: q.timestamp
+                date: q.timestamp || q.lastUpdated
             })),
             ...history.map(h => ({
                 ...h,
-                isIncomplete: false
+                isIncomplete: false,
+                isCompleted: true
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         historyContent.innerHTML = `
-            <div class="grid grid-cols-1 gap-2">
+            <div class="grid grid-cols-1 gap-1.5">
                 ${allQuizzes.map((entry) => {
                     const date = new Date(entry.date);
-                    const formattedDate = date.toLocaleDateString('en-US', {
-                        month: 'short',
+                    const formattedDate = date.toLocaleDateString('vi-VN', {
+                        month: 'numeric',
                         day: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -145,35 +161,35 @@ class QuizStorage {
                     
                     let score, scoreColor, scoreText;
                     if (entry.isIncomplete) {
-                        score = 0;
+                        score = entry.progress || 0;
                         scoreColor = 'bg-blue-500';
-                        scoreText = 'Đang làm dở';
+                        scoreText = `${score}%`;
                     } else {
                         score = (entry.score / entry.totalQuestions) * 100;
                         scoreColor = score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500';
-                        scoreText = `${entry.score}/${entry.totalQuestions} (${Math.round(score)}%)`;
+                        scoreText = `${entry.score}/${entry.totalQuestions}`;
                     }
                     
                     return `
-                        <div class="bg-white rounded shadow-sm hover:shadow transition-shadow p-2 ${entry.isIncomplete ? 'border-l-4 border-blue-500' : ''}">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <h3 class="text-sm font-medium text-gray-800 truncate flex-1">
+                        <div class="bg-white rounded shadow-sm p-2 ${entry.isIncomplete ? 'border-l-2 border-blue-500' : entry.isCompleted ? 'border-l-2 border-green-500' : ''}">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-xs font-medium text-gray-800 truncate flex-1">
                                     ${entry.topic}
                                 </h3>
-                                <span class="text-[10px] text-gray-500 whitespace-nowrap ml-2">
+                                <span class="text-[10px] text-gray-500 ml-2">
                                     ${formattedDate}
                                 </span>
                             </div>
                             
-                            <div class="flex items-center gap-2 mb-1.5">
+                            <div class="flex items-center gap-1.5 mb-1">
                                 <div class="flex-1">
-                                    <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
                                         <div class="${scoreColor} h-full rounded-full transition-all" 
-                                             style="width: ${entry.isIncomplete ? '50' : score}%">
+                                             style="width: ${score}%">
                                         </div>
                                     </div>
                                 </div>
-                                <div class="whitespace-nowrap text-[10px] font-medium ${
+                                <div class="text-[10px] font-medium ${
                                     entry.isIncomplete ? 'text-blue-600' :
                                     score >= 80 ? 'text-green-600' : 
                                     score >= 60 ? 'text-yellow-600' : 
@@ -183,7 +199,7 @@ class QuizStorage {
                                 </div>
                             </div>
 
-                            <div class="flex justify-end gap-2">
+                            <div class="flex justify-end gap-1">
                                 ${entry.isIncomplete ? `
                                     <button 
                                         onclick="QuizStorage.resumeQuiz(${JSON.stringify(entry).replace(/"/g, '&quot;')})"
@@ -191,29 +207,26 @@ class QuizStorage {
                                     >
                                         <svg class="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                         </svg>
-                                        Tiếp tục
+                                        Câu ${entry.currentQuestionIndex + 1}
                                     </button>
                                     <button 
                                         onclick="QuizStorage.restartQuiz(${JSON.stringify(entry).replace(/"/g, '&quot;')})"
                                         class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-white bg-gray-500 rounded hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-gray-400 transition-colors"
                                     >
-                                        <svg class="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                         </svg>
-                                        Làm lại
                                     </button>
                                 ` : `
                                     <button 
                                         onclick="QuizStorage.showQuizDetails(${JSON.stringify(entry).replace(/"/g, '&quot;')})"
-                                        class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-blue-500 transition-colors"
+                                        class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-white bg-green-600 rounded hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-green-500 transition-colors"
                                     >
-                                        <svg class="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                         </svg>
-                                        Details
                                     </button>
                                 `}
                             </div>
@@ -418,19 +431,23 @@ class QuizStorage {
     }
 
     static resumeQuiz(quizData) {
-        // Restore quiz state
-        localStorage.setItem(this.CURRENT_QUIZ_KEY, JSON.stringify(quizData));
+        // Restore quiz state with all progress
+        localStorage.setItem(this.CURRENT_QUIZ_KEY, JSON.stringify({
+            ...quizData,
+            timestamp: new Date().toISOString()
+        }));
         
         // Reload the page to start from where they left off
         window.location.reload();
     }
 
     static restartQuiz(quizData) {
-        // Remove draft answers and reset current question index
+        // Create a fresh quiz state without any answers
         const newQuizData = {
             ...quizData,
             currentQuestionIndex: 0,
             draftAnswers: {},
+            progress: 0,
             timestamp: new Date().toISOString()
         };
         

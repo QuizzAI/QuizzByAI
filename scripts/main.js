@@ -820,12 +820,12 @@ function submitQuiz(quiz) {
         <button 
           id="redoQuizBtn"
           class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200">
-          RedoQuiz
+          Làm lại Quiz
         </button>
         <button 
           id="homeBtn"
           class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200">
-          Return homepage
+          Trang chủ
         </button>
       </div>
     </div>

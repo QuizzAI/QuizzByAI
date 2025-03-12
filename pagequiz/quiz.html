@@ -61,13 +61,13 @@
             id="generate-quiz"
             class="startpag-button w-full sm:w-auto bg-purple-600 text-white font-bold rounded-full px-6 py-2 shadow-lg hover:bg-red-700 hover:scale-105 transition-all duration-300"
           >
-            Generate Quizz
+            Tạo Quiz
           </button>
           <button
             id="historyBtn"
             class="startpag-button w-full sm:w-auto bg-blue-600 text-white font-bold rounded-full px-6 py-2 shadow-lg hover:bg-red-700 hover:scale-105 transition-all duration-300"
           >
-            Question History
+            Lịch sử Quiz
           </button>
         </div>
       </div>
@@ -157,13 +157,13 @@
             id="noBtn"
             class="bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-red-700 transition-all duration-200"
           >
-            No
+            Không
           </button>
           <button
             id="yesBtn"
             class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition-all duration-200"
           >
-            Yes
+            Có
           </button>
         </div>
       </div>
@@ -224,21 +224,22 @@
         <div class="cat__segment"></div>
         <div class="cat__segment"></div>
         <div class="cat__segment"></div>
+        <div class="cat__segment"></div>
       </div>
     </div>
 
     <!-- Question History Modal -->
     <div id="historyModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 flex flex-col" style="height: 80vh;">
-        <div class="flex justify-between items-center p-4 border-b">
-          <h2 class="text-2xl font-bold text-gray-800">Question History</h2>
-          <button id="closeHistory" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="bg-white rounded-lg p-4 max-w-md w-full max-h-[70vh] mx-4">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-semibold text-gray-800">Lịch sử Quiz</h2>
+          <button id="closeHistory" class="text-gray-400 hover:text-gray-600 p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
         </div>
-        <div id="historyContent" class="flex-1 overflow-y-auto p-4">
+        <div id="historyContent" class="space-y-2 overflow-y-auto" style="max-height: calc(70vh - 4rem);">
           <!-- History items will be inserted here -->
         </div>
       </div>
