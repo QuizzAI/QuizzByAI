@@ -258,104 +258,26 @@ function isValidJSON(text) {
 }
 
 async function fetchQuizFromGemini(topic) {
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  // Get number of questions from dropdown
-  const numberOfQuestions = parseInt(questionCountSelect.value);
-  let language = "Vietnamese";
-
   // Kiểm tra và làm sạch chủ đề
   const cleanTopic = topic.trim();
   if (!cleanTopic) {
     throw new Error("Chủ đề không được để trống");
   }
 
-  const instructions = `You are a system that generates multiple-choice quizzes in JSON format based on a given topic, language, and number of questions. Follow these strict guidelines:
-
-1. Output ONLY a valid JSON object with no additional text, markdown, or explanations.
-2. The JSON structure must match exactly the following format:
-{
-  "title": "${cleanTopic}",
-  "questions": [
-    {
-      "question": "Question text here",
-      "answers": ["Answer 1", "Answer 2", "Answer 3", "Answer 4"],
-      "correctAnswerIndex": 0
-    }
-  ]
-}
-
-3. Ensure:
-   - Generate exactly ${numberOfQuestions} questions
-   - All questions and answers must be in ${language}
-   - Each question must be unique and directly related to "${cleanTopic}"
-   - Questions must test understanding, not just memorization
-   - Questions should vary in difficulty (easy, medium, hard)
-   - All answers must be plausible and related to the question
-   - correctAnswerIndex must be 0-3, corresponding to the correct answer
-   - The response must be a well-formed JSON without any formatting errors
-   - No additional text, explanations, or markdown syntax
-
-4. Question Guidelines:
-   - Start with "Tại sao", "Làm thế nào", "Phân tích", "So sánh" for deeper understanding
-   - Include application and analysis questions, not just facts
-   - Avoid yes/no questions
-   - Make questions clear and unambiguous
-   - Questions should be educational and meaningful
-
-5. Answer Guidelines:
-   - All 4 answers must be plausible
-   - Avoid obviously wrong answers
-   - Keep answers concise but clear
-   - No duplicate or very similar answers
-   - Correct answer should not follow a pattern
-
-Now, generate a quiz about "${cleanTopic}" with exactly ${numberOfQuestions} questions in ${language}.
-Return ONLY a JSON object matching the format specified above.
-Do not include any additional text, markdown, or explanations.
-
-Failure to meet these requirements will result in invalid output.`;
-
-  const apiKey = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU";
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-  });
-
-  const generationConfig = {
-    temperature: 1,
-    topP: 0.95,
-    topK: 40,
-    maxOutputTokens: 8192,
-  };
-
   try {
-    const result = await model.generateContent(instructions, generationConfig);
-    const response = await result.response;
-    const text = response.text();
-
-    try {
-      const parsedQuiz = parseQuizJSON(text);
-      if (parsedQuiz) {
-        // Validate quiz structure and content
-        if (!validateQuiz(parsedQuiz, numberOfQuestions, language)) {
-          throw new Error("Quiz không đáp ứng yêu cầu về chất lượng");
-        }
-        // Save the new questions for this topic
-        QuizStorage.saveTopicQuestions(cleanTopic, parsedQuiz.questions);
-        return parsedQuiz;
-      } else {
-        throw new Error("Không thể parse JSON từ response");
-      }
-    } catch (error) {
-      showAlert(
-        "Chủ đề không hợp lệ hoặc không đủ thông tin để tạo câu hỏi. Vui lòng nhập chủ đề cụ thể và có ý nghĩa hơn."
-      );
+    const result = await run(cleanTopic);
+    if (!result) {
       return null;
     }
+
+    const parsedQuiz = JSON.parse(result);
+    return {
+      id: Date.now(),
+      ...parsedQuiz,
+      status: "incomplete",
+    };
   } catch (error) {
-    console.error("API call error:", error);
+    console.error("Error in fetchQuizFromGemini:", error);
     showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
     return null;
   }
@@ -585,8 +507,8 @@ function renderQuiz(quiz, container) {
     <form id="quiz-form" onsubmit="event.preventDefault();" class="quiz-container bg-gray-800 rounded-lg p-6">
       <div class="mb-4 text-white">
         Question ${currentQuestionIndex + 1}/${quiz.questions.length}
-      </div>
-      
+    </div>
+    
       <div class="question-text text-white mb-6">
         ${quiz.questions[currentQuestionIndex].question}
       </div>
@@ -599,30 +521,30 @@ function renderQuiz(quiz, container) {
               <input type="radio" 
                 id="answer${ansIndex}" 
                 name="q${currentQuestionIndex}" 
-                value="${ansIndex}" 
+                value="${ansIndex}"
                 class="hidden"
               >
               <label for="answer${ansIndex}" 
                 class="answer-button w-full text-left py-3 px-4 rounded-lg bg-blue-500 hover:bg-blue-600 transition-all duration-200 text-white cursor-pointer block">
                 ${String.fromCharCode(65 + ansIndex)}. ${answer}
-              </label>
+            </label>
             </div>
           `
           )
           .join("")}
-      </div>
-      
+    </div>
+    
       <div class="flex justify-between mt-6">
-        <div class="flex gap-2">
+      <div class="flex gap-2">
           <button type="button" id="previousQuestion" 
             class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200 ${
               currentQuestionIndex === 0 ? "opacity-50 cursor-not-allowed" : ""
             }"
-            ${currentQuestionIndex === 0 ? "disabled" : ""}>
+          ${currentQuestionIndex === 0 ? "disabled" : ""}>
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-          </button>
+        </button>
           <button type="button" id="nextQuestion" 
             class="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-all duration-200 ${
               currentQuestionIndex === quiz.questions.length - 1
