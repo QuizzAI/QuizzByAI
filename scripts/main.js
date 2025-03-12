@@ -258,22 +258,13 @@ function isValidJSON(text) {
 }
 
 async function fetchQuizFromGemini(topic) {
-  // Kiểm tra và làm sạch chủ đề
-  const cleanTopic = topic.trim();
-  if (!cleanTopic) {
-    throw new Error("Chủ đề không được để trống");
-  }
-
   try {
-    const result = await run(cleanTopic);
-    if (!result) {
-      return null;
-    }
+    const result = await run(topic);
+    if (!result) return null;
 
-    const parsedQuiz = JSON.parse(result);
     return {
       id: Date.now(),
-      ...parsedQuiz,
+      ...JSON.parse(result),
       status: "incomplete",
     };
   } catch (error) {
@@ -913,7 +904,10 @@ async function run(payload) {
 
   const prompt = `You are a system that generates multiple-choice quizzes in JSON format based on a given topic, language, and number of questions. Follow these strict guidelines:
 
-1. Output ONLY a valid JSON object with no additional text, markdown, or explanations.
+1. First, validate if the topic "${cleanTopic}" is appropriate and meaningful for a quiz:
+   - If the topic is not appropriate or too vague, respond with exactly: "INVALID_TOPIC"
+   - If the topic is appropriate, proceed with generating the quiz
+
 2. The JSON structure must match exactly the following format:
 {
   "title": "${cleanTopic}",
@@ -949,13 +943,7 @@ async function run(payload) {
    - Avoid obviously wrong answers
    - Keep answers concise but clear
    - No duplicate or very similar answers
-   - Correct answer should not follow a pattern
-
-Now, generate a quiz about "${cleanTopic}" with exactly ${numberOfQuestions} questions in ${language}.
-Return ONLY a JSON object matching the format specified above.
-Do not include any additional text, markdown, or explanations.
-
-Failure to meet these requirements will result in invalid output.`;
+   - Correct answer should not follow a pattern`;
 
   const apiKey = "AIzaSyAuWn7Gnjc0vfREeO2TnL368rUSaPt56cU";
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -972,22 +960,57 @@ Failure to meet these requirements will result in invalid output.`;
   };
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+    });
 
-    // Kiểm tra xem response có phải là JSON hợp lệ không
-    try {
-      JSON.parse(text);
-      return text;
-    } catch (error) {
-      // Nếu response không phải JSON hợp lệ, nghĩa là topic không hợp lệ
+    if (!result.response) {
+      showAlert("Không nhận được phản hồi từ API. Vui lòng thử lại!");
+      return null;
+    }
+
+    const text = result.response.text();
+    console.log("API Response:", text);
+
+    // Kiểm tra nếu API trả về INVALID_TOPIC
+    if (text.includes("INVALID_TOPIC")) {
       showAlert(
         "Chủ đề không hợp lệ hoặc không đủ thông tin để tạo câu hỏi. Vui lòng nhập chủ đề cụ thể và có ý nghĩa hơn."
       );
       return null;
     }
+
+    // Xử lý response có thể chứa markdown
+    let jsonText = text;
+    if (text.includes("```")) {
+      const matches = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
+      if (matches && matches[1]) {
+        jsonText = matches[1].trim();
+      }
+    }
+
+    try {
+      // Thử parse JSON
+      const parsed = JSON.parse(jsonText);
+
+      // Kiểm tra cấu trúc cơ bản
+      if (
+        !parsed.title ||
+        !Array.isArray(parsed.questions) ||
+        parsed.questions.length !== numberOfQuestions
+      ) {
+        throw new Error("Invalid quiz structure");
+      }
+
+      return jsonText;
+    } catch (error) {
+      console.error("JSON parsing error:", error);
+      showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
+      return null;
+    }
   } catch (error) {
+    console.error("API error:", error);
     showAlert("Có lỗi xảy ra khi tạo quiz. Vui lòng thử lại!");
     return null;
   }
